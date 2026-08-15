@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "Anti-Sycophancy Benchmark Suite"
+type: software
+license: MIT
+version: "1.0.0"
+authors:
+  - name: "Antisycophancy.ai Lab"
+    email: "research@antisycophancy.ai"
+repository-code: "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite"
+url: "https://antisycophancy.ai"

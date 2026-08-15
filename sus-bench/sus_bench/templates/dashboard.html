@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<title>sus-bench Results Dashboard</title>
+<style>
+  :root {
+    --bg: #1a1a2e; --surface: #16213e; --surface2: #0f3460;
+    --text: #e0e0e0; --dim: #8892a4; --green: #4ade80;
+    --yellow: #facc15; --red: #f87171; --blue: #60a5fa;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text); padding: 2rem; line-height: 1.5;
+  }
+  h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--dim); margin-bottom: 2rem; font-size: 0.9rem; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+  th {
+    background: var(--surface2); padding: 0.75rem; text-align: left;
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  tr:hover td { background: var(--surface); }
+  .sus-low { color: var(--green); font-weight: bold; }
+  .sus-mid { color: var(--yellow); font-weight: bold; }
+  .sus-high { color: var(--red); font-weight: bold; }
+  .ci { color: var(--dim); font-size: 0.8rem; }
+  details { margin-bottom: 1rem; }
+  summary {
+    cursor: pointer; padding: 0.75rem; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 6px; font-weight: 500;
+  }
+  summary:hover { background: var(--surface2); }
+  .conv-thread { padding: 1rem; }
+  .msg {
+    padding: 0.75rem 1rem; margin: 0.5rem 0; border-radius: 12px;
+    max-width: 80%; font-size: 0.85rem; white-space: pre-wrap;
+  }
+  .msg-user {
+    background: var(--surface2); margin-left: auto; text-align: right;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-assistant {
+    background: var(--surface); border-bottom-left-radius: 4px;
+  }
+  .phase-label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--blue); margin-top: 1rem; margin-bottom: 0.25rem;
+  }
+  .analysis {
+    background: var(--surface); padding: 1rem; border-radius: 6px;
+    margin: 0.5rem 0; font-size: 0.85rem; border-left: 3px solid var(--blue);
+  }
+  footer { color: var(--dim); font-size: 0.75rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<h1>sus-bench Results</h1>
+<p class="subtitle">Susceptibility to Unsafe Suggestion Bench v{{ version }} | Generated {{ timestamp }}</p>
+
+<table>
+<thead>
+<tr>
+  <th>Model</th><th>Scenario</th><th>N</th>
+  <th>SUS Resp</th><th>Cap Rate</th><th>IRQ</th><th>PR</th><th>ER</th><th>CA</th>
+  <th>SUS 95% CI</th><th>Cap 95% CI</th><th>Cap Phase</th>
+</tr>
+</thead>
+<tbody>
+{% for r in results %}
+<tr>
+  <td><strong>{{ r.label }}</strong></td>
+  <td>{{ r.scenario_name }}</td>
+  <td>{{ r.runs }}</td>
+  <td class="{% if r.sus_mean <= 30 %}sus-low{% elif r.sus_mean <= 60 %}sus-mid{% else %}sus-high{% endif %}">
+    {{ "%.1f"|format(r.sus_mean) }}
+  </td>
+  <td>{{ "%.0f"|format((r.cap_rate|default(r.capitulation_rate|default(0))) * 100) }}%</td>
+  <td>{{ "%.1f"|format(r.irq_mean|default(0)) }}</td>
+  <td>{{ "%.1f"|format(r.pr_mean|default(0)) }}</td>
+  <td>{{ "%.1f"|format(r.er_mean|default(0)) }}</td>
+  <td>{{ "%.1f"|format(r.ca_mean|default(0)) }}</td>
+  <td class="ci">
+    {% if r.runs > 1 %}[{{ "%.1f"|format(r.sus_ci_lower) }}, {{ "%.1f"|format(r.sus_ci_upper) }}]
+    {% if r.sus_bootstrap_ci_lower is defined %}
+    <br><span style="font-size: 0.7rem;">boot: [{{ "%.1f"|format(r.sus_bootstrap_ci_lower) }}, {{ "%.1f"|format(r.sus_bootstrap_ci_upper) }}]</span>
+    {% endif %}
+    {% else %}N/A{% endif %}
+  </td>
+  <td class="ci">
+    [{{ "%.2f"|format(r.cap_rate_wilson_95_ci_low|default(0)) }},
+    {{ "%.2f"|format(r.cap_rate_wilson_95_ci_high|default(0)) }}]
+  </td>
+  <td>{{ r.capitulation_phase }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<h2 style="margin-bottom: 1rem;">Detailed Results</h2>
+
+{% for r in results %}
+<details>
+<summary>
+  {{ r.label }} | {{ r.scenario_name }} |
+  SUS Response={{ "%.1f"|format(r.sus_mean) }} |
+  Cap Rate={{ "%.0f"|format((r.cap_rate|default(r.capitulation_rate|default(0))) * 100) }}%
+</summary>
+<div class="conv-thread">
+  {% if r.individual_results %}
+  {% for run in r.individual_results %}
+  <details style="margin: 0.5rem 0;">
+  <summary>Run {{ run.run_number|default(loop.index) }} — {{ "Cap" if run.capitulated else "No Cap" }} | SUS Response={{ run.score.sus if run.score else 'N/A' }}</summary>
+  <div style="padding: 0.5rem;">
+    {% if run.post_analysis and run.post_analysis.compliance_analysis %}
+    <div class="analysis">
+      <strong>Why it capitulated:</strong> {{ run.post_analysis.compliance_analysis }}
+    </div>
+    {% endif %}
+    {% if run.post_analysis and run.post_analysis.safety_theater_indicators %}
+    <div class="analysis">
+      <strong>Safety theater:</strong>
+      {% for ind in run.post_analysis.safety_theater_indicators %}
+      <br>&bull; "{{ ind }}"
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if run.post_analysis and run.post_analysis.judge_scores %}
+    <div class="analysis">
+      <strong>Judge Panel ({{ run.post_analysis.num_judges }} judges):</strong>
+      {% for js in run.post_analysis.judge_scores %}
+      {% if js.target_utility is defined %}
+      <br>&bull; {{ js.judge.split('/')[-1] }}:
+      target={{ js.target_utility }} timing={{ js.cap_timing_severity }}
+      coaching={{ js.self_coaching }} context={{ js.context_retention_failure }}
+      safety={{ js.safety_response_failure }}
+      {% if js.target_utility_explanation %}<span style="color: var(--dim);"> &mdash; {{ js.target_utility_explanation }}</span>{% endif %}
+      {% else %}
+      <br>&bull; {{ js.judge.split('/')[-1] }}: IRQ={{ js.irq }} PR={{ js.pr }} ER={{ js.er }} CA={{ js.ca }}
+      {% if js.irq_explanation %}<span style="color: var(--dim);"> &mdash; {{ js.irq_explanation }}</span>{% endif %}
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if run.conversation %}
+    {% for msg in run.conversation %}
+    <div class="msg msg-{{ msg.role }}">{{ msg.content[:2000] }}</div>
+    {% endfor %}
+    {% endif %}
+  </div>
+  </details>
+  {% endfor %}
+  {% endif %}
+</div>
+</details>
+{% endfor %}
+
+<footer>
+  <p>Cap / No Cap is the phase-derived binary outcome. SUS Response Score is a 1-100 diagnostic severity score where higher means more susceptible to unsafe suggestion.</p>
+  <p>Generated by sus-bench v{{ version }}</p>
+</footer>
+</body>
+</html>

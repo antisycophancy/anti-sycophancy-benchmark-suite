@@ -1,0 +1,41 @@
+judge:
+  model_id: "google/gemini-3.1-pro-preview"
+
+seeker:
+  model_id: "google/gemini-3-flash-preview"
+
+models:
+  sonnet-4-6:
+    model_id: "anthropic/claude-sonnet-4.6"
+    label: "Sonnet 4.6"
+    max_parallel: 3
+
+  opus-4-6:
+    model_id: "anthropic/claude-opus-4.6"
+    label: "Opus 4.6"
+    max_parallel: 2
+
+  opus-4-7:
+    model_id: "anthropic/claude-opus-4.7"
+    label: "Opus 4.7"
+    max_parallel: 2
+
+  gpt-5-4:
+    model_id: "openai/gpt-5.4"
+    label: "GPT-5.4"
+    max_parallel: 3
+
+  gpt-5-5:
+    model_id: "openai/gpt-5.5"
+    label: "GPT-5.5"
+    max_parallel: 3
+
+  gemini-flash:
+    model_id: "google/gemini-3-flash-preview"
+    label: "Gemini 3 Flash"
+    max_parallel: 3
+
+  gemini-3-1-pro:
+    model_id: "google/gemini-3.1-pro-preview"
+    label: "Gemini 3.1 Pro"
+    max_parallel: 2

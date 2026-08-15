@@ -1,0 +1,1304 @@
+schema_version: 1
+description: "Central model, endpoint, judge, and agent config for the unified benchmark suite."
+
+defaults:
+  endpoint: openrouter
+  max_parallel: 3
+
+endpoints:
+  openrouter:
+    provider_api: openai_compatible
+    openai_base_url: "https://openrouter.ai/api/v1"
+    chat_completions_url: "https://openrouter.ai/api/v1/chat/completions"
+    api_key_env: "OPENROUTER_API_KEY"
+  local_openai_compatible:
+    provider_api: openai_compatible
+    openai_base_url: "http://localhost:9999/v1"
+    chat_completions_url: "http://localhost:9999/v1/chat/completions"
+    api_key_env: "LOCAL_OPENAI_COMPATIBLE_API_KEY"
+  openai_native:
+    provider_api: openai_compatible
+    openai_base_url: "https://api.openai.com/v1"
+    chat_completions_url: "https://api.openai.com/v1/chat/completions"
+    api_key_env: "OPENAI_API_KEY"
+  openai_responses:
+    # Native OpenAI Responses API. Chat Completions rejects reasoning
+    # effort=max for the gpt-5.6 tiers; /v1/responses accepts the full
+    # none..max range, so the gpt-5.6 family routes here.
+    provider_api: openai_responses
+    responses_url: "https://api.openai.com/v1/responses"
+    api_key_env: "OPENAI_API_KEY"
+  anthropic_native:
+    provider_api: anthropic_messages
+    messages_url: "https://api.anthropic.com/v1/messages"
+    api_key_env: "ANTHROPIC_API_KEY"
+  google_gemini_native:
+    provider_api: gemini_generate_content
+    generate_content_base_url: "https://generativelanguage.googleapis.com/v1beta"
+    api_key_env: "GEMINI_API_KEY"
+
+agents:
+  analyzer:
+    model_id: "google/gemini-3-flash-preview"
+    role: "SUS passphrase extraction, follow-up generation, and adaptive escalation"
+  seeker:
+    model_id: "google/gemini-3-flash-preview"
+    role: "Adaptive follow-up pressure generation"
+  flip_generator:
+    model_id: "google/gemini-3-flash-preview"
+    role: "AITA side-B conflict generation"
+
+module_agents:
+  aita:
+    seeker:
+      model_id: "google/gemini-3-flash-preview"
+      role: "AITA adaptive follow-up pressure generation"
+    flip_generator:
+      model_id: "google/gemini-3-flash-preview"
+      role: "AITA side-B conflict generation"
+
+agent_profiles:
+  gemini_3_flash_preview:
+    description: "Historical generator/analyzer baseline."
+    agents:
+      analyzer:
+        model_id: "google/gemini-3-flash-preview"
+        role: "SUS passphrase extraction, follow-up generation, and adaptive escalation"
+      seeker:
+        model_id: "google/gemini-3-flash-preview"
+        role: "Adaptive follow-up pressure generation"
+      flip_generator:
+        model_id: "google/gemini-3-flash-preview"
+        role: "AITA side-B conflict generation"
+  gemini_35_flash:
+    description: "Fast Google workhorse candidate."
+    agents:
+      analyzer:
+        model_id: "google/gemini-3.5-flash"
+        role: "SUS passphrase extraction, follow-up generation, and adaptive escalation"
+      seeker:
+        model_id: "google/gemini-3.5-flash"
+        role: "Adaptive follow-up pressure generation"
+      flip_generator:
+        model_id: "google/gemini-3.5-flash"
+        role: "AITA side-B conflict generation"
+  haiku_45:
+    description: "Anthropic workhorse pressure-writer profile."
+    agents:
+      analyzer:
+        model_id: "anthropic/claude-haiku-4.5"
+        role: "SUS passphrase extraction, follow-up generation, and adaptive escalation"
+      seeker:
+        model_id: "anthropic/claude-haiku-4.5"
+        role: "Adaptive follow-up pressure generation"
+      flip_generator:
+        model_id: "anthropic/claude-haiku-4.5"
+        role: "AITA side-B conflict generation"
+  sonnet_46:
+    description: "Higher-cost Anthropic writer baseline for pressure-quality bakeoffs."
+    agents:
+      analyzer:
+        model_id: "anthropic/claude-sonnet-4.6"
+        role: "SUS passphrase extraction, follow-up generation, and adaptive escalation"
+      seeker:
+        model_id: "anthropic/claude-sonnet-4.6"
+        role: "Adaptive follow-up pressure generation"
+      flip_generator:
+        model_id: "anthropic/claude-sonnet-4.6"
+        role: "AITA side-B conflict generation"
+
+judge_sets:
+  calibration:
+    description: "Low-cost single-judge path for smoke tests and prompt calibration."
+    primary: "google/gemini-3.1-pro-preview"
+    panel:
+      - "google/gemini-3.1-pro-preview"
+  frontier:
+    description: "Higher-quality frontier judge set for rescoring and publication candidates."
+    primary: "openai/gpt-5.5"
+    panel:
+      - "openai/gpt-5.5"
+      # Keep Opus 4.7 in the Anthropic judge slot for continuity with historical judge calls.
+      - "anthropic/claude-opus-4.7"
+      - "google/gemini-3.1-pro-preview"
+  direct_calibration_high:
+    description: "Single direct Gemini high-thinking judge for smoke and calibration scoring."
+    primary: "judge-gemini-3-1-pro-native-high"
+    panel:
+      - "judge-gemini-3-1-pro-native-high"
+  direct_frontier_high:
+    description: "Direct provider high-thinking judge panel for publication-candidate rescoring."
+    primary: "judge-gpt-5-5-native-high"
+    panel:
+      - "judge-gpt-5-5-native-high"
+      - "judge-claude-opus-4-7-native-high"
+      - "judge-gemini-3-1-pro-native-high"
+
+judge_models:
+  judge-gpt-5-5-native-high:
+    model_id: "gpt-5.5"
+    label: "GPT-5.5 / high reasoning / OpenAI native judge"
+    endpoint: openai_native
+    condition_id: "judge-gpt-5-5-openai-native-high-reasoning"
+    condition_metadata:
+      provider_route: "openai_native"
+      role: "judge"
+      effort: "high"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 8192
+      reasoning_effort: "high"
+  judge-claude-opus-4-7-native-high:
+    model_id: "claude-opus-4-7"
+    label: "Claude Opus 4.7 / Anthropic native high-effort judge"
+    endpoint: anthropic_native
+    condition_id: "judge-claude-opus-4-7-anthropic-native-high"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      role: "judge"
+      effort: "high"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 4096
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "high"
+  judge-gemini-3-1-pro-native-high:
+    model_id: "gemini-3.1-pro-preview"
+    label: "Gemini 3.1 Pro / Google native high-thinking judge"
+    endpoint: google_gemini_native
+    condition_id: "judge-gemini-3-1-pro-google-native-high-thinking"
+    condition_metadata:
+      provider_route: "google_gemini_native"
+      api_family: "generativelanguage.generateContent"
+      role: "judge"
+      effort: "high"
+      effort_policy: "explicit_gemini_thinking_level"
+      thinking_config_path: "generationConfig.thinkingConfig.thinkingLevel"
+    request_options:
+      generationConfig:
+        maxOutputTokens: 8192
+        thinkingConfig:
+          includeThoughts: false
+          thinkingLevel: "high"
+
+model_groups:
+  calibration_smoke:
+    - "gemini-flash"
+  flash_35_smoke:
+    - "gemini-flash"
+    - "gemini-3-5-flash"
+  frontier_03_04:
+    - "claude-opus-4-6"
+    - "claude-opus-4-7"
+    - "claude-sonnet-4-6"
+    - "gpt-5-4"
+    - "gpt-5-5"
+    - "gemini-3-1-pro"
+  official_core_20260605:
+    - "gpt-chat-latest"
+    - "gpt-5-5-native-default"
+    - "gpt-5-5-native-high"
+    - "claude-opus-4-8-native-provider-default"
+    - "claude-opus-4-8-native-high"
+    - "claude-opus-4-8-native-xhigh"
+    - "gemini-3-1-pro"
+    - "gemini-3-1-pro-openrouter-high"
+    - "gemini-3-5-flash"
+  official_external_20260605:
+    - "deepseek-v4-pro"
+    - "deepseek-v3-2"
+    - "mistral-large-2512"
+    - "mistral-small-3-2"
+    - "grok-4-20"
+    - "qwen-3-6-plus"
+    - "glm-5-1"
+    - "kimi-k2-6"
+    - "gemma-4-31b"
+    - "nemotron-3-super"
+    - "mimo-v2-5-pro"
+  official_full_20260605:
+    - "gpt-chat-latest"
+    - "gpt-5-5-native-default"
+    - "gpt-5-5-native-high"
+    - "claude-opus-4-8-native-provider-default"
+    - "claude-opus-4-8-native-high"
+    - "claude-opus-4-8-native-xhigh"
+    - "gemini-3-1-pro"
+    - "gemini-3-1-pro-openrouter-high"
+    - "gemini-3-5-flash"
+    - "deepseek-v4-pro"
+    - "deepseek-v3-2"
+    - "mistral-large-2512"
+    - "mistral-small-3-2"
+    - "grok-4-20"
+    - "qwen-3-6-plus"
+    - "glm-5-1"
+    - "kimi-k2-6"
+    - "gemma-4-31b"
+    - "nemotron-3-super"
+    - "mimo-v2-5-pro"
+  chat_latest_sonnet_smoke:
+    - "gpt-chat-latest"
+    - "claude-sonnet-4-6"
+  aita_opus_4_8_high_smoke:
+    - "claude-opus-4-8-high"
+  aita_opus_4_7_high_smoke:
+    - "claude-opus-4-7"
+  sus_xhigh_smoke:
+    - "gpt-5-5-xhigh"
+    - "claude-opus-4-8-xhigh"
+  claude_opus_4_8_route_smoke:
+    - "claude-opus-4-8-high"
+    - "claude-opus-4-8-native-high"
+  claude_opus_4_8_native_effort_smoke:
+    - "claude-opus-4-8-native-high"
+    - "claude-opus-4-8-native-xhigh"
+  # Legacy 2026-06-30 sweep. Do not use for new effort comparisons: its
+  # output-token caps vary by effort, so the rows are not generation-comparable
+  # under RUNBOOK §0.6. Retained so the frozen historical contract remains
+  # legible.
+  claude_sonnet_5_native_effort_sus_n20:
+    - "claude-sonnet-5-native-low"
+    - "claude-sonnet-5-native-medium"
+    - "claude-sonnet-5-native-high"
+    - "claude-sonnet-5-native-xhigh"
+    - "claude-sonnet-5-native-max"
+  # Publication replacement for the legacy Sonnet 5 sweep. The 128k cap is
+  # uniform across every effort so output budget is not a hidden condition.
+  claude_sonnet_5_native_effort_uniform_128k_n20:
+    - "claude-sonnet-5-native-low-128k"
+    - "claude-sonnet-5-native-medium-128k"
+    - "claude-sonnet-5-native-high-128k"
+    - "claude-sonnet-5-native-xhigh-128k"
+    - "claude-sonnet-5-native-max-128k"
+  claude_fable_5_native_effort_sus_n20:
+    - "claude-fable-5-native-low"
+    - "claude-fable-5-native-medium"
+    - "claude-fable-5-native-high"
+    - "claude-fable-5-native-xhigh"
+    - "claude-fable-5-native-max"
+  # NOTE: no provider-default arm. Anthropic documents `high` AS the Opus 5
+  # default effort ("Start at the default, high"), so a no-explicit-effort arm
+  # would duplicate `high` on the effort axis while differing on max_tokens
+  # (unset vs 128000) — a confound, not a condition, per Amendment O2. The
+  # `high` row IS the shipped-default row for this model.
+  claude_opus_5_native_effort_sus_n20:
+    - "claude-opus-5-native-low"
+    - "claude-opus-5-native-medium"
+    - "claude-opus-5-native-high"
+    - "claude-opus-5-native-xhigh"
+    - "claude-opus-5-native-max"
+  # The four efforts not covered by the 2026-07-28 `high` probe
+  # (opus5-sus-high-probe-20260728). Same comparison_spec_hash, so the two run
+  # dirs combine into one 5-condition sweep at analysis time.
+  claude_opus_5_native_effort_sus_remaining:
+    - "claude-opus-5-native-low"
+    - "claude-opus-5-native-medium"
+    - "claude-opus-5-native-xhigh"
+    - "claude-opus-5-native-max"
+  # AITA/EPIS run at `high` only: Anthropic documents high as the Opus 5 default
+  # effort, so it is the configuration an ordinary user actually gets.
+  claude_opus_5_native_high_only:
+    - "claude-opus-5-native-high"
+  gpt_5_6_sol_native_effort:
+    - "gpt-5-6-sol-native-low"
+    - "gpt-5-6-sol-native-medium"
+    - "gpt-5-6-sol-native-high"
+    - "gpt-5-6-sol-native-xhigh"
+    - "gpt-5-6-sol-native-max"
+  gpt_5_6_terra_native_effort:
+    - "gpt-5-6-terra-native-low"
+    - "gpt-5-6-terra-native-medium"
+    - "gpt-5-6-terra-native-high"
+    - "gpt-5-6-terra-native-xhigh"
+    - "gpt-5-6-terra-native-max"
+  gpt_5_6_luna_native_effort:
+    - "gpt-5-6-luna-native-low"
+    - "gpt-5-6-luna-native-medium"
+    - "gpt-5-6-luna-native-high"
+    - "gpt-5-6-luna-native-xhigh"
+    - "gpt-5-6-luna-native-max"
+  gpt_5_6_canary:
+    - "gpt-5-6-luna-native-low"
+  gpt_5_6_sus_none:
+    - "gpt-5-6-sol-native-none"
+    - "gpt-5-6-terra-native-none"
+    - "gpt-5-6-luna-native-none"
+  provider_route_smoke:
+    - "gpt-5-5-high"
+    - "gpt-5-5-native-high"
+    - "claude-opus-4-8-high"
+    - "claude-opus-4-8-native-high"
+  gemini_native_route_smoke:
+    - "gemini-3-1-pro"
+    - "gemini-3-1-pro-openrouter-high"
+    - "gemini-3-1-pro-native-high"
+    - "gemini-3-5-flash"
+    - "gemini-3-5-flash-native-low"
+  local_endpoint_smoke:
+    - "local-openai-compatible"
+
+models:
+  claude-opus-4-6:
+    model_id: "anthropic/claude-opus-4.6"
+    label: "Claude Opus 4.6"
+    max_parallel: 2
+  claude-opus-4-7:
+    model_id: "anthropic/claude-opus-4.7"
+    label: "Claude Opus 4.7 / default high effort"
+    max_parallel: 8
+    condition_id: "claude-opus-4-7-openrouter-default-high"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "high"
+      effort_policy: "explicit_openrouter_verbosity"
+    request_options:
+      reasoning:
+        enabled: true
+        exclude: true
+      verbosity: "high"
+  claude-opus-4-8-high:
+    model_id: "anthropic/claude-opus-4.8"
+    label: "Claude Opus 4.8 / default high effort"
+    max_parallel: 8
+    condition_id: "claude-opus-4-8-openrouter-default-high"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "high"
+      effort_policy: "explicit_openrouter_verbosity"
+    request_options:
+      reasoning:
+        enabled: true
+        exclude: true
+      verbosity: "high"
+  claude-opus-4-8-xhigh:
+    model_id: "anthropic/claude-opus-4.8"
+    label: "Claude Opus 4.8 / xhigh effort"
+    max_parallel: 4
+    condition_id: "claude-opus-4-8-openrouter-xhigh"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "xhigh"
+      effort_policy: "explicit_openrouter_verbosity"
+    request_options:
+      reasoning:
+        enabled: true
+        exclude: true
+      verbosity: "xhigh"
+  claude-opus-4-8-provider-default:
+    model_id: "anthropic/claude-opus-4.8"
+    label: "Claude Opus 4.8 / OpenRouter provider default"
+    max_parallel: 8
+    condition_id: "claude-opus-4-8-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  claude-opus-4-8-native-provider-default:
+    model_id: "claude-opus-4-8"
+    label: "Claude Opus 4.8 / Anthropic native provider default"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-opus-4-8-anthropic-native-provider-default"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  claude-opus-4-8-native-high:
+    model_id: "claude-opus-4-8"
+    label: "Claude Opus 4.8 / Anthropic native high effort"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-opus-4-8-anthropic-native-high"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "high"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 4096
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "high"
+  claude-opus-4-8-native-xhigh:
+    model_id: "claude-opus-4-8"
+    label: "Claude Opus 4.8 / Anthropic native xhigh effort"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-opus-4-8-anthropic-native-xhigh"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "xhigh"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 8192
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "xhigh"
+  claude-sonnet-5-native-low:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native low effort"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-low"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "low"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 4096
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "low"
+  claude-sonnet-5-native-medium:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native medium effort"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-medium"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "medium"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 4096
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "medium"
+  claude-sonnet-5-native-high:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native high effort"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-high"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "high"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 4096
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "high"
+  claude-sonnet-5-native-xhigh:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native xhigh effort"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-xhigh"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "xhigh"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 16384
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "xhigh"
+  claude-sonnet-5-native-max:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native max effort"
+    endpoint: anthropic_native
+    max_parallel: 1
+    condition_id: "claude-sonnet-5-anthropic-native-max-64k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "max"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 65536
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "max"
+  claude-sonnet-5-native-low-128k:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native low effort / 128k output cap"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-low-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "low"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "low"
+  claude-sonnet-5-native-medium-128k:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native medium effort / 128k output cap"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-medium-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "medium"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "medium"
+  claude-sonnet-5-native-high-128k:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native high effort / 128k output cap"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-high-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "high"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "high"
+  claude-sonnet-5-native-xhigh-128k:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native xhigh effort / 128k output cap"
+    endpoint: anthropic_native
+    max_parallel: 2
+    condition_id: "claude-sonnet-5-anthropic-native-xhigh-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "xhigh"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "xhigh"
+  claude-sonnet-5-native-max-128k:
+    model_id: "claude-sonnet-5"
+    label: "Claude Sonnet 5 / Anthropic native max effort / 128k output cap"
+    endpoint: anthropic_native
+    max_parallel: 1
+    condition_id: "claude-sonnet-5-anthropic-native-max-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "max"
+      effort_policy: "explicit_anthropic_output_config"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+      output_config:
+        effort: "max"
+  claude-fable-5-native-low:
+    model_id: "claude-fable-5"
+    label: "Claude Fable 5 / Anthropic native low effort"
+    endpoint: anthropic_native
+    max_parallel: 1
+    condition_id: "claude-fable-5-anthropic-native-low-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "low"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "low"
+  claude-fable-5-native-medium:
+    model_id: "claude-fable-5"
+    label: "Claude Fable 5 / Anthropic native medium effort"
+    endpoint: anthropic_native
+    max_parallel: 1
+    condition_id: "claude-fable-5-anthropic-native-medium-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "medium"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "medium"
+  claude-fable-5-native-high:
+    model_id: "claude-fable-5"
+    label: "Claude Fable 5 / Anthropic native high effort"
+    endpoint: anthropic_native
+    max_parallel: 1
+    condition_id: "claude-fable-5-anthropic-native-high-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "high"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "high"
+  claude-fable-5-native-xhigh:
+    model_id: "claude-fable-5"
+    label: "Claude Fable 5 / Anthropic native xhigh effort"
+    endpoint: anthropic_native
+    max_parallel: 1
+    condition_id: "claude-fable-5-anthropic-native-xhigh-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "xhigh"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "xhigh"
+  claude-fable-5-native-max:
+    model_id: "claude-fable-5"
+    label: "Claude Fable 5 / Anthropic native max effort"
+    endpoint: anthropic_native
+    max_parallel: 1
+    condition_id: "claude-fable-5-anthropic-native-max-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "max"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "max"
+  # --- Claude Opus 5 (added 2026-07-28) -------------------------------------
+  # Appended to the existing SUS comparison set per RUNBOOK 0.2: benchmark_spec,
+  # sample, and judge_panel hashes are unchanged; only model_conditions_hash and
+  # run_execution_hash move. max_parallel is 8 because the 2026-07-28 sweep used
+  # about 1% of Anthropic's documented output-token allowance at peak; the
+  # scheduler and global paid-call lease still provide lower operational
+  # ceilings. max_tokens 128000 from the start follows the Amendment O2 lesson
+  # (an under-set cap makes high-effort calls return reasoning-only `incomplete`
+  # output that is billed but unusable).
+  # DO NOT USE in comparisons. Retained only so the decision is legible.
+  # `high` is Anthropic's documented default effort for Opus 5, so this arm adds
+  # nothing on the effort axis but differs on max_tokens (unset vs 128000).
+  # Report the `high` row as the shipped-default configuration instead.
+  claude-opus-5-native-provider-default:
+    model_id: "claude-opus-5"
+    label: "Claude Opus 5 / Anthropic native provider default (DEPRECATED — see note)"
+    endpoint: anthropic_native
+    max_parallel: 8
+    condition_id: "claude-opus-5-anthropic-native-provider-default"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  claude-opus-5-native-low:
+    model_id: "claude-opus-5"
+    label: "Claude Opus 5 / Anthropic native low effort"
+    endpoint: anthropic_native
+    max_parallel: 8
+    condition_id: "claude-opus-5-anthropic-native-low-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "low"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "low"
+  claude-opus-5-native-medium:
+    model_id: "claude-opus-5"
+    label: "Claude Opus 5 / Anthropic native medium effort"
+    endpoint: anthropic_native
+    max_parallel: 8
+    condition_id: "claude-opus-5-anthropic-native-medium-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "medium"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "medium"
+  claude-opus-5-native-high:
+    model_id: "claude-opus-5"
+    label: "Claude Opus 5 / Anthropic native high effort"
+    endpoint: anthropic_native
+    max_parallel: 8
+    condition_id: "claude-opus-5-anthropic-native-high-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "high"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "high"
+  claude-opus-5-native-xhigh:
+    model_id: "claude-opus-5"
+    label: "Claude Opus 5 / Anthropic native xhigh effort"
+    endpoint: anthropic_native
+    max_parallel: 8
+    condition_id: "claude-opus-5-anthropic-native-xhigh-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "xhigh"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "xhigh"
+  claude-opus-5-native-max:
+    model_id: "claude-opus-5"
+    label: "Claude Opus 5 / Anthropic native max effort"
+    endpoint: anthropic_native
+    max_parallel: 8
+    condition_id: "claude-opus-5-anthropic-native-max-128k"
+    condition_metadata:
+      provider_route: "anthropic_native"
+      effort: "max"
+      effort_policy: "explicit_anthropic_output_config"
+      provider_fallback: "disabled"
+    request_options:
+      max_tokens: 128000
+      thinking:
+        type: "adaptive"
+        display: "omitted"
+      output_config:
+        effort: "max"
+  claude-sonnet-4-6:
+    model_id: "anthropic/claude-sonnet-4.6"
+    label: "Claude Sonnet 4.6"
+    max_parallel: 3
+    condition_id: "claude-sonnet-4-6-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  gpt-5-4:
+    model_id: "openai/gpt-5.4"
+    label: "GPT-5.4"
+    max_parallel: 3
+  gpt-5-5:
+    model_id: "openai/gpt-5.5"
+    label: "GPT-5.5 / provider default / OpenRouter"
+    max_parallel: 3
+    condition_id: "gpt-5-5-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  gpt-5-5-high:
+    model_id: "openai/gpt-5.5"
+    label: "GPT-5.5 / high reasoning / OpenRouter"
+    max_parallel: 3
+    condition_id: "gpt-5-5-openrouter-high-reasoning"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "high"
+      effort_policy: "explicit_openrouter_reasoning"
+    request_options:
+      reasoning:
+        effort: "high"
+        exclude: true
+  gpt-5-5-native-default:
+    model_id: "gpt-5.5"
+    label: "GPT-5.5 / provider default / OpenAI native"
+    endpoint: openai_native
+    max_parallel: 2
+    condition_id: "gpt-5-5-openai-native-provider-default"
+    condition_metadata:
+      provider_route: "openai_native"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  gpt-5-5-native-high:
+    model_id: "gpt-5.5"
+    label: "GPT-5.5 / high reasoning / OpenAI native"
+    endpoint: openai_native
+    max_parallel: 2
+    condition_id: "gpt-5-5-openai-native-high-reasoning"
+    condition_metadata:
+      provider_route: "openai_native"
+      effort: "high"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 8192
+      reasoning_effort: "high"
+  gpt-5-6-sol-native-low:
+    model_id: "gpt-5.6-sol"
+    label: "GPT-5.6 Sol / OpenAI native low effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-sol-openai-native-low"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "low"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "low"
+  gpt-5-6-sol-native-medium:
+    model_id: "gpt-5.6-sol"
+    label: "GPT-5.6 Sol / OpenAI native medium effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-sol-openai-native-medium"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "medium"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "medium"
+  gpt-5-6-sol-native-high:
+    model_id: "gpt-5.6-sol"
+    label: "GPT-5.6 Sol / OpenAI native high effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-sol-openai-native-high"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "high"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "high"
+  gpt-5-6-sol-native-xhigh:
+    model_id: "gpt-5.6-sol"
+    label: "GPT-5.6 Sol / OpenAI native xhigh effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-sol-openai-native-xhigh"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "xhigh"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "xhigh"
+  gpt-5-6-sol-native-max:
+    model_id: "gpt-5.6-sol"
+    label: "GPT-5.6 Sol / OpenAI native max effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-sol-openai-native-max"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "max"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "max"
+  gpt-5-6-terra-native-low:
+    model_id: "gpt-5.6-terra"
+    label: "GPT-5.6 Terra / OpenAI native low effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-terra-openai-native-low"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "low"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "low"
+  gpt-5-6-terra-native-medium:
+    model_id: "gpt-5.6-terra"
+    label: "GPT-5.6 Terra / OpenAI native medium effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-terra-openai-native-medium"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "medium"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "medium"
+  gpt-5-6-terra-native-high:
+    model_id: "gpt-5.6-terra"
+    label: "GPT-5.6 Terra / OpenAI native high effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-terra-openai-native-high"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "high"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "high"
+  gpt-5-6-terra-native-xhigh:
+    model_id: "gpt-5.6-terra"
+    label: "GPT-5.6 Terra / OpenAI native xhigh effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-terra-openai-native-xhigh"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "xhigh"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "xhigh"
+  gpt-5-6-terra-native-max:
+    model_id: "gpt-5.6-terra"
+    label: "GPT-5.6 Terra / OpenAI native max effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-terra-openai-native-max"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "max"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "max"
+  gpt-5-6-luna-native-low:
+    model_id: "gpt-5.6-luna"
+    label: "GPT-5.6 Luna / OpenAI native low effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-luna-openai-native-low"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "low"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "low"
+  gpt-5-6-luna-native-medium:
+    model_id: "gpt-5.6-luna"
+    label: "GPT-5.6 Luna / OpenAI native medium effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-luna-openai-native-medium"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "medium"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "medium"
+  gpt-5-6-luna-native-high:
+    model_id: "gpt-5.6-luna"
+    label: "GPT-5.6 Luna / OpenAI native high effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-luna-openai-native-high"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "high"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "high"
+  gpt-5-6-luna-native-xhigh:
+    model_id: "gpt-5.6-luna"
+    label: "GPT-5.6 Luna / OpenAI native xhigh effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-luna-openai-native-xhigh"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "xhigh"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "xhigh"
+  gpt-5-6-luna-native-max:
+    model_id: "gpt-5.6-luna"
+    label: "GPT-5.6 Luna / OpenAI native max effort"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-luna-openai-native-max"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "max"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "max"
+  gpt-5-6-sol-native-none:
+    model_id: "gpt-5.6-sol"
+    label: "GPT-5.6 Sol / OpenAI native none effort (SUS only)"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-sol-openai-native-none"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "none"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "none"
+  gpt-5-6-terra-native-none:
+    model_id: "gpt-5.6-terra"
+    label: "GPT-5.6 Terra / OpenAI native none effort (SUS only)"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-terra-openai-native-none"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "none"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "none"
+  gpt-5-6-luna-native-none:
+    model_id: "gpt-5.6-luna"
+    label: "GPT-5.6 Luna / OpenAI native none effort (SUS only)"
+    endpoint: openai_responses
+    max_parallel: 2
+    condition_id: "gpt-5-6-luna-openai-native-none"
+    condition_metadata:
+      provider_route: "openai_responses"
+      effort: "none"
+      effort_policy: "explicit_openai_reasoning_effort"
+    request_options:
+      max_tokens: 128000
+      reasoning_effort: "none"
+  gpt-5-5-xhigh:
+    model_id: "openai/gpt-5.5"
+    label: "GPT-5.5 / xhigh reasoning / OpenRouter"
+    max_parallel: 3
+    condition_id: "gpt-5-5-openrouter-xhigh-reasoning"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "xhigh"
+      effort_policy: "explicit_openrouter_reasoning"
+    request_options:
+      reasoning:
+        effort: "xhigh"
+        exclude: true
+  gpt-chat-latest:
+    model_id: "openai/gpt-chat-latest"
+    label: "GPT Chat Latest / Instant"
+    max_parallel: 3
+    condition_id: "gpt-chat-latest-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      model_family: "chat_latest"
+      effort: "provider_default"
+      effort_policy: "no_reasoning_parameter_advertised"
+  gemini-3-1-pro:
+    model_id: "google/gemini-3.1-pro-preview"
+    label: "Gemini 3.1 Pro"
+    max_parallel: 2
+    condition_id: "gemini-3-1-pro-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  gemini-3-1-pro-openrouter-high:
+    model_id: "google/gemini-3.1-pro-preview"
+    label: "Gemini 3.1 Pro / OpenRouter high thinking"
+    max_parallel: 2
+    condition_id: "gemini-3-1-pro-openrouter-high-thinking"
+    condition_metadata:
+      provider_route: "openrouter"
+      api_family: "openai_compatible"
+      effort: "high"
+      effort_policy: "explicit_openrouter_reasoning_maps_to_gemini_thinking_level"
+    request_options:
+      reasoning:
+        effort: "high"
+        exclude: true
+  gemini-flash:
+    model_id: "google/gemini-3-flash-preview"
+    label: "Gemini 3 Flash"
+    max_parallel: 3
+  gemini-3-5-flash:
+    model_id: "google/gemini-3.5-flash"
+    label: "Gemini 3.5 Flash"
+    max_parallel: 3
+  gemini-3-1-pro-native-high:
+    model_id: "gemini-3.1-pro-preview"
+    label: "Gemini 3.1 Pro / Google native high thinking"
+    endpoint: google_gemini_native
+    max_parallel: 2
+    condition_id: "gemini-3-1-pro-google-native-high-thinking"
+    condition_metadata:
+      provider_route: "google_gemini_native"
+      api_family: "generativelanguage.generateContent"
+      effort: "high"
+      effort_policy: "explicit_gemini_thinking_level"
+      thinking_config_path: "generationConfig.thinkingConfig.thinkingLevel"
+    request_options:
+      generationConfig:
+        maxOutputTokens: 8192
+        thinkingConfig:
+          includeThoughts: false
+          thinkingLevel: "high"
+  gemini-3-5-flash-native-low:
+    model_id: "gemini-3.5-flash"
+    label: "Gemini 3.5 Flash / Google native low thinking"
+    endpoint: google_gemini_native
+    max_parallel: 3
+    condition_id: "gemini-3-5-flash-google-native-low-thinking"
+    condition_metadata:
+      provider_route: "google_gemini_native"
+      api_family: "generativelanguage.generateContent"
+      effort: "low"
+      effort_policy: "explicit_gemini_thinking_level"
+      thinking_config_path: "generationConfig.thinkingConfig.thinkingLevel"
+    request_options:
+      generationConfig:
+        thinkingConfig:
+          includeThoughts: false
+          thinkingLevel: "low"
+  deepseek-v4-pro:
+    model_id: "deepseek/deepseek-v4-pro"
+    label: "DeepSeek V4 Pro"
+    max_parallel: 4
+    condition_id: "deepseek-v4-pro-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  deepseek-v3-2:
+    model_id: "deepseek/deepseek-v3.2"
+    label: "DeepSeek V3.2"
+    max_parallel: 4
+    condition_id: "deepseek-v3-2-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  mistral-large-2512:
+    model_id: "mistralai/mistral-large-2512"
+    label: "Mistral Large 3 2512"
+    max_parallel: 4
+    condition_id: "mistral-large-2512-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  mistral-small-3-2:
+    model_id: "mistralai/mistral-small-3.2-24b-instruct"
+    label: "Mistral Small 3.2 24B"
+    max_parallel: 4
+    condition_id: "mistral-small-3-2-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  grok-4-20:
+    model_id: "x-ai/grok-4.20"
+    label: "Grok 4.20"
+    max_parallel: 4
+    condition_id: "grok-4-20-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  qwen-3-6-plus:
+    model_id: "qwen/qwen3.6-plus"
+    label: "Qwen 3.6 Plus"
+    max_parallel: 4
+    condition_id: "qwen-3-6-plus-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  glm-5-1:
+    model_id: "z-ai/glm-5.1"
+    label: "GLM 5.1 / no reasoning"
+    max_parallel: 4
+    condition_id: "glm-5-1-openrouter-no-reasoning"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "none"
+      effort_policy: "explicit_openrouter_reasoning_none"
+    request_options:
+      reasoning:
+        effort: "none"
+        exclude: true
+  kimi-k2-6:
+    model_id: "moonshotai/kimi-k2.6"
+    label: "Kimi K2.6 / no reasoning"
+    max_parallel: 4
+    condition_id: "kimi-k2-6-openrouter-no-reasoning"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "none"
+      effort_policy: "explicit_openrouter_reasoning_none"
+    request_options:
+      reasoning:
+        effort: "none"
+        exclude: true
+  gemma-4-31b:
+    model_id: "google/gemma-4-31b-it"
+    label: "Gemma 4 31B"
+    max_parallel: 4
+    condition_id: "gemma-4-31b-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  nemotron-3-super:
+    model_id: "nvidia/nemotron-3-super-120b-a12b"
+    label: "Nemotron 3 Super 120B"
+    max_parallel: 4
+    condition_id: "nemotron-3-super-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  mimo-v2-5-pro:
+    model_id: "xiaomi/mimo-v2.5-pro"
+    label: "MiMo V2.5 Pro"
+    max_parallel: 4
+    condition_id: "mimo-v2-5-pro-openrouter-provider-default"
+    condition_metadata:
+      provider_route: "openrouter"
+      effort: "provider_default"
+      effort_policy: "no_explicit_request_options"
+  local-openai-compatible:
+    model_id: "local/example-model"
+    label: "Local OpenAI-Compatible Endpoint"
+    endpoint: local_openai_compatible
+    max_parallel: 1
+
+# Route-specific model IDs that name the same underlying model as a canonical
+# slug used elsewhere in this file. Grouping/display only — conditions with
+# different routes are NEVER pooled for scoring.
+model_aliases:
+  "openai/gpt-5.6-luna": gpt-5.6-luna
+  "openai/gpt-5.6-sol": gpt-5.6-sol
+  "openai/gpt-5.6-terra": gpt-5.6-terra

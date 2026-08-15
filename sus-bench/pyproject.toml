@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sus-bench"
+version = "1.0.0"
+description = "Susceptibility to Unsafe Suggestion Bench — do AI safety refusals preserve their boundary, or capitulate under reframing?"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11,<3.14"
+authors = [
+    { name = "Antisycophancy.ai Lab", email = "research@antisycophancy.ai" },
+]
+keywords = ["benchmark", "ai-safety", "sycophancy", "llm", "red-teaming"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    # NOTE: antisycophancy-suite-tools is NOT published on PyPI.
+    # Installing this package standalone via `pip install -e sus-bench` will
+    # fail to resolve this dependency. Install from the repo root instead:
+    #   ./scripts/bootstrap
+    "antisycophancy-suite-tools==1.0.0",
+    "httpx>=0.25,<2",
+    "openai>=1.0,<3",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "jinja2>=3.1",
+    "rich>=13.0",
+]
+
+[project.urls]
+Homepage = "https://antisycophancy.ai"
+Repository = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite"
+Issues = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite/issues"
+Documentation = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite/tree/v1.0.0/sus-bench"
+
+[project.scripts]
+sus-bench = "sus_bench.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

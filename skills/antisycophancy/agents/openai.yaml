@@ -1,0 +1,7 @@
+interface:
+  display_name: "Anti-Sycophancy Benchmark"
+  short_description: "Understand, connect, and run the benchmark"
+  default_prompt: "Use $antisycophancy to explain the three tests, help me choose a model connection, and prepare the smallest safe first run."
+
+policy:
+  allow_implicit_invocation: true

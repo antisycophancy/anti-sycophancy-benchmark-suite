@@ -1,0 +1,72 @@
+# Cloned benchmark repos (large, don't track)
+repos/
+syco-bench/
+
+# Internal testing infrastructure (private — not for publishing)
+# Contains: adapter code, Supabase auth, raw results, session logs, screenshots
+internal/
+
+# Local planning/proof artifacts. Keep public benchmark source focused on
+# runnable modules, fixtures, docs, and release-ready methodology.
+.planning/
+.benchmark-companion/
+docs/goals/
+docs/superpowers/
+.superpowers/
+
+# Local research/source snapshots
+.firecrawl/
+internal/upstream/
+
+# Secrets
+.env
+adapter/.env
+adapter/.bench_token
+adapter/.*_model_aliases.json
+adapter/*_model_aliases.json
+
+# Private local benchmark overlays generated from provider-side profiles.
+private_profiles/
+
+# Private unpublished benchmark question/scenario banks.
+# Store held-out/future AITA selections and unreleased SUS scenarios here so
+# public releases expose only the intended current benchmark version.
+private_question_bank/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Benchmark run outputs
+# Keep source, fixtures, manifests, and release notes in git; archive official
+# raw result bundles outside source control after a versioned run.
+results/
+*/results/
+*.jsonl
+!aita-bench/data/curated/**/*.jsonl
+
+# Ephemeral live smoke runs (review locally, don't commit)
+epistemic-sycophancy-bench/results/smoke-*/
+dependency-sycophancy-probe/results/
+
+# Generated unified export bundles (review before publishing/committing)
+unified_profile/results/
+generated_configs/
+.cache/
+
+# OS
+.DS_Store
+
+# Local-only extras and tool caches
+tcq/
+.pytest_cache/
+*.egg-info/
+.coverage
+.wt-*/
+
+# Internal planning docs — never publish
+plans/
+.orca/

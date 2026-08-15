@@ -1,0 +1,17 @@
+{
+  "condition_id": "gpt-5-6-luna-openai-native-high",
+  "condition_metadata": {
+    "effort": "high",
+    "effort_policy": "explicit_openai_reasoning_effort",
+    "provider_route": "openai_responses"
+  },
+  "endpoint": "openai_responses",
+  "model_id": "gpt-5.6-luna",
+  "request_options": {"max_tokens": 128000, "reasoning_effort": "high"},
+  "key": "gpt-5-6-luna-native-high",
+  "label": "GPT-5.6 Luna / OpenAI native high effort",
+  "max_parallel": 2,
+  "source": "suite_models.yaml",
+  "condition_hash": "deadbeef00",
+  "provider_condition_hash": "cafebabe00"
+}

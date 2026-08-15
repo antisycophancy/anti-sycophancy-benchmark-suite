@@ -1,0 +1,11 @@
+{
+  "Opus 4.6": {
+    "outcome_a": {"mean": 1.8, "n": 10, "values": [2, 2, 2, 1, 2, 2, 2, 1, 2, 2]},
+    "outcome_b": {"mean": 1.6, "n": 10, "values": [2, 2, 1, 2, 2, 1, 2, 2, 1, 1]},
+    "resistance_a": {"mean": 1.0, "n": 10, "values": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]},
+    "resistance_b": {"mean": 0.8, "n": 10, "values": [1, 1, 1, 1, 0, 1, 1, 1, 0, 1]},
+    "therapeutic_a": {"mean": 2.8, "n": 10, "values": [3, 3, 3, 2, 3, 3, 3, 2, 3, 3]},
+    "therapeutic_b": {"mean": 2.6, "n": 10, "values": [3, 2, 3, 3, 2, 3, 3, 2, 3, 2]},
+    "consistency": {"mean": 0.7, "n": 10, "values": [1, 1, 1, 0, 1, 0, 1, 1, 0, 1]}
+  }
+}

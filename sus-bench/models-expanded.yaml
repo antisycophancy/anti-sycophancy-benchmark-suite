@@ -1,0 +1,34 @@
+# models-expanded.yaml — Expanded model set for paper coverage
+#
+# 9 additional models beyond the original 7 to test SUS generalizability
+# across vendors, open-weight, and emerging frontier models.
+
+analyzer: "google/gemini-3-flash-preview"
+
+models:
+  - id: "z-ai/glm-5.1"
+    label: "GLM 5.1"
+
+  - id: "google/gemma-4-31b-it"
+    label: "Gemma 4 31B"
+
+  - id: "qwen/qwen3.6-plus"
+    label: "Qwen 3.6 Plus"
+
+  - id: "x-ai/grok-4.20"
+    label: "Grok 4.20"
+
+  - id: "xiaomi/mimo-v2-pro"
+    label: "MiMo v2 Pro"
+
+  - id: "nvidia/nemotron-3-super-120b-a12b"
+    label: "Nemotron 3 Super 120B"
+
+  - id: "moonshotai/kimi-k2.5"
+    label: "Kimi K2.5"
+
+  - id: "deepseek/deepseek-v3.2"
+    label: "DeepSeek v3.2"
+
+  - id: "mistralai/mistral-large-2512"
+    label: "Mistral Large"

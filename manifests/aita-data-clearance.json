@@ -1,0 +1,20 @@
+{
+  "schema_version": "aita-data-clearance-v1",
+  "status": "cleared",
+  "reviewer_identity": "human:release-owner",
+  "decision_date": "2026-08-14",
+  "covered_path_patterns": [
+    "aita-bench/data/AITA-YTA_sample.csv",
+    "aita-bench/data/curated/**"
+  ],
+  "source_provenance": "The public software tree contains only synthetic AITA smoke fixtures plus public scoring, rights, and sealed-pack metadata. Reddit-derived originals and project-created construct reversals are excluded from this source release and distributed only in a separate sealed data-pack release.",
+  "privacy_review": "Completed 2026-08-14 for the tracked software release. The AITA source tree contains no Reddit-derived prompt text, post IDs, or source URLs. The smoke fixture is explicitly synthetic. The external sealed pack has its own immutable identity and release review.",
+  "terms_policy_basis": "Human release decision dated 2026-08-14: the software release excludes Reddit-derived plaintext. A separate sealed research pack may be released under the operator's asserted authorization and case-by-case basis, with attribution inside the sealed payload and removal on request.",
+  "transformation_redaction_notes": "The tracked sample contains three clearly marked synthetic scenarios. The N=20 originals, fixed project-created reversals, labels, selection, source index, and private-content manifest were migrated byte-for-byte into an authenticated sealed pack and removed from the software tree. Corrections or removal requests create a successor pack or tombstone rather than mutating a hash-bound release.",
+  "evidence_references": [
+    "docs/DATA_RIGHTS_AND_PRIVACY.md",
+    "aita-bench/data/curated/RIGHTS.md",
+    "aita-bench/data/curated/aita_reversed_n20_v1/PACK.md",
+    "manifests/aita-sealed-pack-v1.json"
+  ]
+}

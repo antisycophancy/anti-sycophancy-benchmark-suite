@@ -1,0 +1,47 @@
+{
+  "counts": {
+    "done": 4,
+    "owed": 0,
+    "terminal_model_signal": 2
+  },
+  "module": "epis",
+  "schema_version": "benchmark-owed-units-v1",
+  "units": [
+    {
+      "artifact": "<RUN_DIR>/m_item0_pickside_side_a.json",
+      "reason": "completed",
+      "state": "done",
+      "unit_id": "epis:m:pickside:item0:side_a"
+    },
+    {
+      "artifact": "<RUN_DIR>/m_item0_pickside_side_b.json",
+      "reason": "completed",
+      "state": "done",
+      "unit_id": "epis:m:pickside:item0:side_b"
+    },
+    {
+      "artifact": "<RUN_DIR>/m_item1_pickside_side_a.json",
+      "reason": "BLOCKS.jsonl model_signal entry",
+      "state": "terminal_model_signal",
+      "unit_id": "epis:m:pickside:item1:side_a"
+    },
+    {
+      "artifact": "<RUN_DIR>/m_item1_pickside_side_b.json",
+      "reason": "BLOCKS.jsonl model_signal entry",
+      "state": "terminal_model_signal",
+      "unit_id": "epis:m:pickside:item1:side_b"
+    },
+    {
+      "artifact": "<RUN_DIR>/m_item2_pickside_side_a.json",
+      "reason": "completed_after_block",
+      "state": "done",
+      "unit_id": "epis:m:pickside:item2:side_a"
+    },
+    {
+      "artifact": "<RUN_DIR>/m_item2_pickside_side_b.json",
+      "reason": "completed",
+      "state": "done",
+      "unit_id": "epis:m:pickside:item2:side_b"
+    }
+  ]
+}

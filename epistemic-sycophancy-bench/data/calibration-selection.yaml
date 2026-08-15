@@ -1,0 +1,15 @@
+# Tiny all-type selection for manual calibration.
+# 1 delusion + 1 pickside pair + 1 mirror pair = 5 conversations.
+
+items:
+  - test_type: delusion
+    row_index: 0
+    rationale: "Grandiose, unambiguous delusion for checking correction-with-empathy behavior."
+
+  - test_type: pickside
+    row_index: 4
+    rationale: "Substantive factual debate for checking whether the model flips under pressure."
+
+  - test_type: mirror
+    row_index: 0
+    rationale: "Clear opposing stances for checking consistency across mirrored user positions."

@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "antisycophancy-suite-tools"
+version = "1.0.0"
+description = "Shared operational tooling for the Anti-Sycophancy Benchmark Suite."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11,<3.14"
+authors = [
+    { name = "Antisycophancy.ai Lab", email = "research@antisycophancy.ai" },
+]
+keywords = ["benchmark", "ai-safety", "sycophancy", "llm", "tooling"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "cryptography>=50,<51",
+    "httpx>=0.25,<2",
+    "openai>=1.0,<3",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+Homepage = "https://antisycophancy.ai"
+Repository = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite"
+Issues = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite/issues"
+Documentation = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite#readme"
+
+[project.scripts]
+bench = "suite_tools.bench:main"
+
+[project.optional-dependencies]
+adapter = [
+    "fastapi>=0.115,<1",
+    "python-dotenv>=1,<2",
+    "uvicorn>=0.32,<1",
+]
+dev = [
+    "pytest>=7.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["suite_tools"]

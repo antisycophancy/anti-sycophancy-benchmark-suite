@@ -1,0 +1,126 @@
+#!/bin/sh
+set -eu
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+MANIFEST="$ROOT_DIR/SHA256SUMS"
+
+verify_signed_git_checkout() {
+  tag=$(git -C "$ROOT_DIR" describe --tags --exact-match HEAD 2>/dev/null || true)
+  if [ -z "$tag" ]; then
+    echo "Release source verification failed: Git checkout is not at an exact signed release tag." >&2
+    exit 1
+  fi
+  if ! git -C "$ROOT_DIR" verify-tag "$tag" >/dev/null 2>&1; then
+    echo "Release source verification failed: release tag '$tag' has no valid cryptographic signature." >&2
+    exit 1
+  fi
+  if ! git -C "$ROOT_DIR" diff --quiet --ignore-submodules -- \
+      || ! git -C "$ROOT_DIR" diff --cached --quiet --ignore-submodules --; then
+    echo "Release source verification failed: tracked files differ from signed tag '$tag'." >&2
+    exit 1
+  fi
+  if [ -n "$(git -C "$ROOT_DIR" ls-files --others --exclude-standard)" ]; then
+    echo "Release source verification failed: untracked source files are present." >&2
+    exit 1
+  fi
+  if git -C "$ROOT_DIR" ls-files -s | awk '$1 == "120000" || $1 == "160000" { found=1 } END { exit !found }'; then
+    echo "Release source verification failed: symlinks and submodules are not allowed." >&2
+    exit 1
+  fi
+
+  echo "Release source signed Git tag '$tag' verified."
+}
+
+git_root=""
+if command -v git >/dev/null 2>&1; then
+  git_root=$(git -C "$ROOT_DIR" rev-parse --show-toplevel 2>/dev/null || true)
+fi
+if [ "$git_root" = "$ROOT_DIR" ]; then
+  verify_signed_git_checkout
+  exit 0
+fi
+
+if [ ! -e "$MANIFEST" ] && [ ! -L "$MANIFEST" ]; then
+  echo "Release source verification failed: source is neither a signed-tag checkout nor a checksummed release archive." >&2
+  exit 1
+fi
+
+if [ ! -f "$MANIFEST" ] || [ -L "$MANIFEST" ]; then
+  echo "Release source verification failed: SHA256SUMS is not a regular file." >&2
+  exit 1
+fi
+
+manifest_raw=$(mktemp "${TMPDIR:-/tmp}/antisycophancy-manifest-raw.XXXXXX")
+manifest_paths=$(mktemp "${TMPDIR:-/tmp}/antisycophancy-manifest.XXXXXX")
+actual_raw=$(mktemp "${TMPDIR:-/tmp}/antisycophancy-actual-raw.XXXXXX")
+actual_paths=$(mktemp "${TMPDIR:-/tmp}/antisycophancy-actual.XXXXXX")
+cleanup() {
+  rm -f "$manifest_raw" "$manifest_paths" "$actual_raw" "$actual_paths"
+}
+trap cleanup EXIT HUP INT TERM
+
+if ! awk '
+  length($0) < 67 { exit 1 }
+  substr($0, 65, 2) != "  " { exit 1 }
+  substr($0, 1, 64) !~ /^[0-9a-f]+$/ { exit 1 }
+  substr($0, 67) !~ /^[A-Za-z0-9_.\/-]+$/ { exit 1 }
+  { print substr($0, 67) }
+' "$MANIFEST" >"$manifest_raw"; then
+  echo "Release source verification failed: malformed checksum manifest." >&2
+  exit 1
+fi
+LC_ALL=C sort "$manifest_raw" >"$manifest_paths"
+
+if [ ! -s "$manifest_paths" ] || [ -n "$(LC_ALL=C uniq -d "$manifest_paths")" ]; then
+  echo "Release source verification failed: empty or duplicate checksum inventory." >&2
+  exit 1
+fi
+
+if find "$ROOT_DIR" -type l -print | grep -q .; then
+  echo "Release source verification failed: symlinks are not allowed." >&2
+  exit 1
+fi
+
+if ! find "$ROOT_DIR" -type f -exec sh -c '
+  root=$1
+  shift
+  for path do
+    relative=${path#"$root"/}
+    [ "$relative" = SHA256SUMS ] && continue
+    case "$relative" in
+      *[!A-Za-z0-9_./-]*) exit 1 ;;
+    esac
+  done
+' sh "$ROOT_DIR" {} +; then
+  echo "Release source verification failed: unsafe source path." >&2
+  exit 1
+fi
+
+if ! find "$ROOT_DIR" -type f ! -path "$MANIFEST" -exec sh -c '
+  root=$1
+  shift
+  for path do
+    printf "%s\n" "${path#"$root"/}"
+  done
+' sh "$ROOT_DIR" {} + >"$actual_raw"; then
+  echo "Release source verification failed: could not inventory source files." >&2
+  exit 1
+fi
+LC_ALL=C sort "$actual_raw" >"$actual_paths"
+
+if ! cmp -s "$manifest_paths" "$actual_paths"; then
+  echo "Release source verification failed: source inventory differs from SHA256SUMS." >&2
+  exit 1
+fi
+
+cd "$ROOT_DIR"
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum -c SHA256SUMS >/dev/null
+elif command -v shasum >/dev/null 2>&1; then
+  shasum -a 256 -c SHA256SUMS >/dev/null
+else
+  echo "Release source verification failed: sha256sum or shasum is required." >&2
+  exit 1
+fi
+
+echo "Release source inventory checksums verified (integrity only; not publisher authenticity)."

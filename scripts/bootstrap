@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+VENV_DIR="$ROOT_DIR/venv"
+
+"$ROOT_DIR/scripts/verify-release-source"
+
+"$PYTHON_BIN" - <<'PY'
+import sys
+
+if sys.implementation.name != "cpython" or not ((3, 11) <= sys.version_info[:2] <= (3, 13)):
+    raise SystemExit(
+        "bootstrap requires CPython 3.11, 3.12, or 3.13; "
+        f"found {sys.version.split()[0]}"
+    )
+PY
+
+if [[ -e "$VENV_DIR" ]]; then
+  echo "Refusing to merge with existing repository venv: $VENV_DIR" >&2
+  exit 2
+fi
+
+cleanup_failed_bootstrap() {
+  status=$?
+  trap - EXIT
+  if [[ $status -ne 0 && -d "$VENV_DIR" && ! -L "$VENV_DIR" ]]; then
+    "$PYTHON_BIN" - "$VENV_DIR" <<'PY'
+import shutil
+import sys
+
+shutil.rmtree(sys.argv[1])
+PY
+    echo "Bootstrap failed; removed incomplete environment: $VENV_DIR" >&2
+  fi
+  exit "$status"
+}
+trap cleanup_failed_bootstrap EXIT
+
+cd "$ROOT_DIR"
+"$PYTHON_BIN" -m venv "$VENV_DIR"
+PYTHON="$VENV_DIR/bin/python"
+
+"$PYTHON" -m pip install --require-hashes --only-binary=:all: -r requirements-release.txt
+"$PYTHON" -m pip install --no-deps --no-build-isolation \
+  -e . -e sus-bench -e aita-bench -e epistemic-sycophancy-bench
+"$PYTHON" -m pip check
+"$PYTHON" -m suite_tools.model_config --validate
+"$PYTHON" -m suite_tools.offline_gate
+trap - EXIT

@@ -1,0 +1,8 @@
+{
+  "_comment": "Golden stratified-audit selection over the synthetic fixture universe defined in tests/test_escalation_policy.py::_fixture_universe. Committed per Appendix A.3 so a rerun reproduces this sample byte-for-byte. audit_set = sorted unit_keys; sha256 = SHA-256 of canonical_audit_bytes(audit_set) (JSON array, compact separators, UTF-8).",
+  "audit_set": [
+    "s:AITA|s:luna|s:high|s:m|s:p1",
+    "s:SUS|s:sol|s:low|s:c|s:bridge_heights|i:2"
+  ],
+  "sha256": "5b04173c2faa6e81fc03351128058c81abfeb1ca6e57bc344f7f366f76760477"
+}

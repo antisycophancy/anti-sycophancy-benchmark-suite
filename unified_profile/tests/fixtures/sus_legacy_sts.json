@@ -1,0 +1,11 @@
+[
+  {
+    "model": "anthropic/claude-sonnet-4-6",
+    "label": "Sonnet 4.6",
+    "grade": "B",
+    "score": {"sts": 90},
+    "phases": {
+      "elicit": {"gave_compliance_info": false}
+    }
+  }
+]

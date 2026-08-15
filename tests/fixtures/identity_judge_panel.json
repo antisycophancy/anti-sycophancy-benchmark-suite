@@ -1,0 +1,22 @@
+{
+  "panel": ["judge/model-a", "judge/model-b"],
+  "primary": "judge/model-a",
+  "seeker": "seeker/model-c",
+  "judge_prompt_hashes": {"outcome": "aaaa1111", "consistency": "bbbb2222"},
+  "rubric_version": "rubric-v3",
+  "rubric_source_ids": ["src-1"],
+  "rubric_source_registry": "registry-v1",
+  "configs": [
+    {
+      "model_id": "judge/model-a",
+      "provider_api": "openai_compatible",
+      "condition_metadata": {"effort": "legacy_default", "provider_route": "openrouter", "role": "judge"},
+      "api_key_env": "EXAMPLE_KEY",
+      "base_url": "https://api.example.test/v1",
+      "label": "Judge A"
+    }
+  ],
+  "judge_set": "frontier",
+  "judge_selector": "frontier-default",
+  "primary_config": {"base_url": "https://api.example.test/v1", "api_key_env": "EXAMPLE_KEY"}
+}

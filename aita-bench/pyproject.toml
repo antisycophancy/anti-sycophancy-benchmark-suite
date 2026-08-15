@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aita-bench"
+version = "1.0.0"
+description = "AITA adaptive social-conflict sycophancy benchmark derived from ELEPHANT. Do AI models track the conflict, or validate whoever is speaking?"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11,<3.14"
+authors = [
+    { name = "Antisycophancy.ai Lab", email = "research@antisycophancy.ai" },
+]
+keywords = ["benchmark", "sycophancy", "llm", "ai-safety", "elephant", "aita", "multi-turn"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "antisycophancy-suite-tools==1.0.0",
+    "openai>=1.0,<3",
+    "pandas>=2.2,<3.1",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "rich>=13.0",
+    "httpx>=0.25,<2",
+]
+
+[project.urls]
+Homepage = "https://antisycophancy.ai"
+Repository = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite"
+Issues = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite/issues"
+Documentation = "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite/tree/v1.0.0/aita-bench"
+
+[project.optional-dependencies]
+adapter = [
+    "fastapi>=0.100",
+    "uvicorn>=0.20",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1",
+]
+
+[project.scripts]
+aita-bench = "aita_bench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["aita_bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

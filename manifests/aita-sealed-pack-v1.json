@@ -1,0 +1,64 @@
+{
+  "schema_version": "aita-sealed-pack-registry-v1",
+  "pack_id": "aita-reversed-n20",
+  "pack_version": "v1",
+  "pair_count": 20,
+  "distribution": {
+    "mode": "separate-signed-release",
+    "repository_url": "https://github.com/antisycophancy/aita-benchmark-data",
+    "release_url": "https://github.com/antisycophancy/aita-benchmark-data/releases/tag/aita-reversed-n20-v1",
+    "envelope_url": "https://github.com/antisycophancy/aita-benchmark-data/releases/download/aita-reversed-n20-v1/aita-reversed-n20-v1.envelope.json",
+    "ciphertext_url": "https://github.com/antisycophancy/aita-benchmark-data/releases/download/aita-reversed-n20-v1/aita-reversed-n20-v1.sealed",
+    "ciphertext_file": "aita-reversed-n20-v1.sealed",
+    "ciphertext_bytes": 259759,
+    "ciphertext_sha256": "aad2080f05f0ffbb6169b8fae82838211ec9a75c51562da942351d72941a6e54",
+    "envelope_file": "aita-reversed-n20-v1.envelope.json",
+    "envelope_bytes": 984,
+    "envelope_sha256": "f5a57efa032ab0f754598a7ceda1168e625e3d3c95e37e13c359e6698a8d0bf1"
+  },
+  "identity": {
+    "plaintext_identity_sha256": "b88b4fcf2ba528f689020b8074f426b815def2ed31f4d020df73ad3d58fd2c1a",
+    "canonicalization_version": "canonical-json-exact-bytes-v1",
+    "cipher_suite": "AES-256-GCM",
+    "key_scheme": "public-base64url-split-22-21-v1"
+  },
+  "migration_evidence": {
+    "byte_parity_verified": true,
+    "files": {
+      "DATASET_CARD.md": {
+        "bytes": 10923,
+        "sha256": "848af2cce8aec890bf536c7b70a7bd952ac1183f3e1c3887f4659c704fa4b1d0"
+      },
+      "MANIFEST.json": {
+        "bytes": 75446,
+        "sha256": "82d9d5c5a65a0afcaacac717e333f9e32c1d0ad0e7462c9ff393ed1f6e40b056"
+      },
+      "flip.csv": {
+        "bytes": 41820,
+        "sha256": "719649b2a3ce6c4f4a2479f715cdb8aed50b55bfc39c23e570e922eb26fcb23f"
+      },
+      "flip.labels.json": {
+        "bytes": 976,
+        "sha256": "8e13b8bdd1a7e5032b9e4d08d96358f9af57eed50078a6db9e90b9db7ddabd1a"
+      },
+      "og.csv": {
+        "bytes": 57863,
+        "sha256": "a48366f3d75e1b21ada96e1e77f2be42272dea05d624f01a9d54322b2e2d16e8"
+      },
+      "selection.yaml": {
+        "bytes": 7213,
+        "sha256": "de38069b41514a7eb8f140ddf422c0d45755da3a74bf20b222c3fb76ad62a7b9"
+      }
+    }
+  },
+  "unlock": {
+    "part_a_location": "The public envelope in the separately signed data-pack release.",
+    "part_b_location": "A separate downloadable asset attached to the signed Anti-Sycophancy Benchmark Suite v1.0.0 release.",
+    "part_b_url": "https://github.com/antisycophancy/anti-sycophancy-benchmark-suite/releases/download/v1.0.0/aita-reversed-n20-v1-part-b.txt",
+    "claim": "Public reconstructable-key anti-indexing friction only; not confidentiality or DRM."
+  },
+  "corrections_and_removal": {
+    "contact": "research@antisycophancy.ai",
+    "effect": "Advisory only. A successor or tombstone cannot retract copies of an already public pack and key fragments."
+  }
+}

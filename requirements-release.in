@@ -1,0 +1,29 @@
+# Release dependency inputs. This file is intentionally exact; the generated
+# requirements-release.txt is the hash-enforced installation authority.
+#
+# Generated with pip-tools 7.5.2 (`pip-compile`) on CPython 3.11:
+#   python3.11 -m piptools compile --generate-hashes --allow-unsafe --resolver=backtracking \
+#     --output-file=requirements-release.txt requirements-release.in
+#
+# Runtime and module dependencies
+httpx==0.28.1
+openai==2.45.0
+PyYAML==6.0.3
+Jinja2==3.1.6
+rich==15.0.0
+pandas==3.0.3
+cryptography==50.0.0
+
+# Reference adapter dependencies
+fastapi==0.139.0
+python-dotenv==1.2.2
+uvicorn==0.51.0
+
+# Test, build, and release-security tooling
+pip==26.1.2
+setuptools==83.0.0
+pytest==9.1.1
+hatchling==1.32.0
+editables==0.6
+pip-audit==2.10.1
+bandit==1.9.4

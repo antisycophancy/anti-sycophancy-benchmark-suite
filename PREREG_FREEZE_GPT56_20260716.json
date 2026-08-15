@@ -1,0 +1,154 @@
+{
+ "prereg_file": "the preregistration document accompanying the paper (not distributed in this repository)",
+ "_note": "paper_repo_commit removed: referenced a private repository (paper-writer/) that is not publicly available; the preregistration SHA-256 fields below remain meaningful without it",
+ "benchmark_repo_commit": "d97039f",
+ "frozen_at": "2026-07-16T04:10:00-07:00",
+ "_identity_constants_note": "judge_panel_hashes and comparison_spec_* below are the CURRENT values under identity projection benchmark-identity-projection-v3. They were re-blessed on 2026-07-24; the values recorded at the 2026-07-16 freeze are preserved verbatim under original_freeze_20260716 and the transition is documented in amendments[] entry P1. Nothing was deleted.",
+ "identity_projection_version": "benchmark-identity-projection-v3",
+ "judge_panel_hashes": {
+  "aita": "23617dd5aa1aecb4dcb2ec7b5f5946892b3e349d4ddc1ea37027c568f2161b67",
+  "epis": "dfb77df3169963bf2c38c73ba030ef81c7b9cc694e2b5bf22624b4465d0b9c58",
+  "sus": "5790916fae62b147461386248da39a1c690855b0209af6fbee4156f9e2f1f3e0"
+ },
+ "comparison_spec_anchors_gpt56": {
+  "aita": "a164fe78f149c4098f2b610b50fde33a36b8182ac14a09fd22357bf5445e0a6b",
+  "epis": "5d5e10b60ff350cf3606dd934669761dfa69f042530d517b45fb477676ddf7f6",
+  "sus": "573cdc86ca785ae006cbe2aa5f8cfde54f9212ec0280f7d98c0c76c07afd3806"
+ },
+ "comparison_spec_frozen_v101": {
+  "aita": "ccadcb39da655aa141822c64e0c34940f70121f522aa7236389183b3034c60b4",
+  "epis": "2bf555b57b8729b65aa5a25334f9611a4a07ae3d24ddcf08f45472628ea48f29"
+ },
+ "original_freeze_20260716": {
+  "_note": "VERBATIM copy of the identity constants as frozen on 2026-07-16 at benchmark_repo_commit d97039f. Preserved unchanged for audit. These values are correct under the pre-3392139 identity projection and are NOT stale data or an error \u2014 they are the same content hashed through an earlier projection. See amendments[] entry P1.",
+  "benchmark_repo_commit": "d97039f",
+  "frozen_at": "2026-07-16T04:10:00-07:00",
+  "identity_projection": "pre-v2 judge projection: blacklist dropping {judge_set, judge_selector, selector, primary_config}; per-judge configs[] entries hashed whole",
+  "judge_panel_hashes": {
+   "aita": "73b62d298053d804a476ec024966e1101d0718ed0bbd2b48b28424c21e6e3ce9",
+   "epis": "9ecc2251c3fbcebcc0d1da187f4bef3081b68b565d497b7f7f205e67e6bc1df6",
+   "sus": "84e507ba76da7c9fafb32b48d2a0456783a09e02f0499e0196f6fd58b9d58e19"
+  },
+  "comparison_spec_anchors_gpt56": {
+   "aita": "39d5bcfb208ef81e3fe5f079e87fd57ed0fb6e12dbe201c116527305f0cef24f",
+   "epis": "2bf6f965175017796e57f0327b8c65563fa7afc59821c50ef93d398afed9f9f3",
+   "sus": "ed1fc3eadb589ead1159111b230e41e644344292b65f7aa1450a67c0fc8c668f"
+  },
+  "comparison_spec_frozen_v101": {
+   "aita": "2370e13e75f5790cf60babfb3da09515a16b71561fcf8bfbef6536843887d146",
+   "epis": "187deadcb1d99a88658a5c3a575b096fc30ede470e114c7240e8f2f70a714335"
+  },
+  "verification": "suite_tools/assert_hash_panel.py --component-wise (50/50 PASS at freeze)"
+ },
+ "decisions": {
+  "release": "v1.0 (edition label = metadata, not hashed)",
+  "sus_none_arm": "yes",
+  "human_adjudicator": "benchmark author, self-blinded per rubric \u00a77",
+  "sonnet5_aita_epis": "deferred",
+  "td_threshold": "solo_therapeutic == 1 (t*=1.0 empirical)",
+  "key_rotation": "deferred by user 2026-07-16; tranche 1 is generation-only (OpenAI native only)"
+ },
+ "staged_execution": {
+  "tranche_1": "N=1 per arm, generation-only (run subcommand; no score subcommand)",
+  "gate": "recalibrate cost interval from tranche-1 ledgers; team approval before remainder"
+ },
+ "verification": "suite_tools/assert_hash_panel.py --component-wise (50/50 PASS at freeze)",
+ "amendments": [
+  {
+   "id": "O1",
+   "date": "2026-07-16",
+   "type": "operational",
+   "summary": "GPT-5.6 family moved to /v1/responses (chat/completions rejects effort=max); design unchanged; pre-scoring",
+   "prereg_sha256_after": "5c69f3c1b614b19a91cc12197601035354983570877140a5b46ce310249e5d88",
+   "benchmark_repo_commit_after": "835c4fc",
+   "preflight": "18/18 PASS; component-wise audit 50/50 PASS post-reprepare"
+  },
+  {
+   "id": "O2",
+   "date": "2026-07-16",
+   "type": "operational",
+   "summary": "max_output_tokens 64000->128000 (documented max; cap is generation-relevant per budget-adaptivity probe); 64K-era rows archived, uniform-cap regeneration; --items precedence defect fixed; reasoning-token persistence added",
+   "prereg_sha256_after": "f264eeae5a52f37b6b33d52266d7aaece9453af782796967acd3f51cfbafc5ed"
+  },
+  {
+   "id": "P1",
+   "date": "2026-07-24",
+   "type": "provenance-constant re-blessing (no scientific content change)",
+   "summary": "The six frozen identity constants recorded at freeze were re-blessed because an intervening code change narrowed the identity projection used to compute them. The hashed content \u2014 judge panel, rubric, and prompt hashes \u2014 is provably unchanged. No hypothesis, dataset, arm, metric, threshold, or analysis decision is affected.",
+   "what_changed": {
+    "judge_panel_hashes": {
+     "aita": {
+      "original": "73b62d298053d804a476ec024966e1101d0718ed0bbd2b48b28424c21e6e3ce9",
+      "amended": "23617dd5aa1aecb4dcb2ec7b5f5946892b3e349d4ddc1ea37027c568f2161b67"
+     },
+     "epis": {
+      "original": "9ecc2251c3fbcebcc0d1da187f4bef3081b68b565d497b7f7f205e67e6bc1df6",
+      "amended": "dfb77df3169963bf2c38c73ba030ef81c7b9cc694e2b5bf22624b4465d0b9c58"
+     },
+     "sus": {
+      "original": "84e507ba76da7c9fafb32b48d2a0456783a09e02f0499e0196f6fd58b9d58e19",
+      "amended": "5790916fae62b147461386248da39a1c690855b0209af6fbee4156f9e2f1f3e0"
+     }
+    },
+    "comparison_spec_anchors_gpt56": {
+     "aita": {
+      "original": "39d5bcfb208ef81e3fe5f079e87fd57ed0fb6e12dbe201c116527305f0cef24f",
+      "amended": "a164fe78f149c4098f2b610b50fde33a36b8182ac14a09fd22357bf5445e0a6b"
+     },
+     "epis": {
+      "original": "2bf6f965175017796e57f0327b8c65563fa7afc59821c50ef93d398afed9f9f3",
+      "amended": "5d5e10b60ff350cf3606dd934669761dfa69f042530d517b45fb477676ddf7f6"
+     },
+     "sus": {
+      "original": "ed1fc3eadb589ead1159111b230e41e644344292b65f7aa1450a67c0fc8c668f",
+      "amended": "573cdc86ca785ae006cbe2aa5f8cfde54f9212ec0280f7d98c0c76c07afd3806"
+     }
+    },
+    "comparison_spec_frozen_v101": {
+     "_note": "Recorded here for completeness: these two v1.0.1 anchors moved for the same single reason and are amended alongside the six above.",
+     "aita": {
+      "original": "2370e13e75f5790cf60babfb3da09515a16b71561fcf8bfbef6536843887d146",
+      "amended": "ccadcb39da655aa141822c64e0c34940f70121f522aa7236389183b3034c60b4"
+     },
+     "epis": {
+      "original": "187deadcb1d99a88658a5c3a575b096fc30ede470e114c7240e8f2f70a714335",
+      "amended": "2bf555b57b8729b65aa5a25334f9611a4a07ae3d24ddcf08f45472628ea48f29"
+     }
+    }
+   },
+   "cause": {
+    "commit": "3392139cd462d29ad477d80af8260dc77fd71ef6",
+    "short_sha": "3392139",
+    "date": "2026-07-18",
+    "title": "feat(provenance): whitelist identity projections (v2) + projection_version/artifact stamps",
+    "change": "Converted the judge-panel identity projection from a blacklist to a whitelist and, critically for these constants, applied a nested whitelist to each entry of judge_panel.configs[]. JUDGE_CONFIG_IDENTITY_KEYS is now {model_id, provider_api, condition_metadata}, which drops exactly three previously-hashed fields from every per-judge config: api_key_env, base_url, and label.",
+    "why_the_change_is_correct": "api_key_env, base_url and label are transport/operator configuration, not judge identity: they describe how the judge was reached and what an operator named it, not which judge scored anything. Including them meant a credential-env rename or a relabel would spuriously break comparability. Route identity is still captured via condition_metadata.provider_route.",
+    "timing_relative_to_freeze": "The prereg was frozen 2026-07-16 at commit d97039f with a 50/50 PASS component-wise audit. The projection change landed two days later, on 2026-07-18. The constants recorded at freeze were therefore correct when recorded and became stale afterwards."
+   },
+   "evidence_content_unchanged": [
+    "Reconstruction: re-running the pre-3392139 projection (blacklist dropping {judge_set, judge_selector, selector, primary_config}, per-judge configs hashed whole) over the CURRENT on-disk contracts reproduces all three original judge_panel_hash values byte-exactly. The projection is therefore the sole cause; the stored contracts did not drift.",
+    "Field-level diff: projecting each judge_panel under the old and the new rule and comparing key by key, the ONLY key whose value differs is configs[]. panel, primary, analyzer, seeker, rubric_version, rubric_source_ids, rubric_source_registry and judge_prompt_hashes are identical under both.",
+    "Substance preserved: the panel is still the same three judges (openai/gpt-5.5, anthropic/claude-opus-4.7, google/gemini-3.1-pro-preview); rubric_version is unchanged per module (aita-judge-rubric-2026-05-30, epis-judge-rubric-2026-05-18, sus-judge-rubric-2026-05-15); all judge_prompt_hashes are unchanged.",
+    "Control case: OLD_1JUDGE_SUS_JUDGE_PANEL_HASH (sus-fable-5-native-effort-n20-20260701-142614) is IDENTICAL under both projections because that panel carries no configs[] list. This isolates the cause to the nested judge-config narrowing specifically.",
+    "comparison_spec_hash is defined as H({benchmark_spec_hash, sample_hash, judge_panel_hash}); recomputing it from today's benchmark_spec_hash and sample_hash with the OLD judge projection reproduces the original anchors exactly, so the anchors inherited the judge_panel_hash move and nothing else.",
+    "Live comparison unaffected: compare_provenance recomputes BOTH sides under one projection and never trusts a stored hash string, so a freeze-era value is never compared against a post-change value. compare_provenance(fable-frontier/epis, gpt56-sol/epis) returns judge_panel_hash: true \u2014 the Fable-vs-GPT-5.6 panels are genuinely identical.",
+    "Safety property intact: cross-module comparison (epis vs sus) still returns all-false with comparable: false, so the checker still refuses non-comparable pairs."
+   ],
+   "scientific_content_unaffected": "This amendment changes recorded fingerprints only. The preregistered hypotheses, arms, dataset, item universe, sample sizes, judge panel, rubrics, scoring, thresholds and analysis plan are all unchanged. Accordingly the preregistration document itself is untouched and prereg_sha256_current is deliberately NOT advanced by this amendment \u2014 unlike operational amendments O1 and O2, no prereg text was edited.",
+   "caveats_for_the_reviewer": [
+    "compare_provenance(fable-frontier/epis, gpt56-sol/epis) reports comparable: false overall, but NOT because of this change. That is the separate, pre-existing EPIS initial_formatter fingerprint-scheme change (constant-string hash -> function-source hash) plus the sample_spec enrichment. Cross-era EPIS equivalence is established component-wise via _epis_benchmark_spec_content_equal, not via the composite hash. This amendment neither creates nor resolves that issue.",
+    "The process failure is real and is recorded rather than minimised: a projection change silently invalidated published preregistration constants, and the only gate that would have caught it was structurally blind. Six days elapsed before detection."
+   ],
+   "why_it_went_unnoticed": "The real-contract tests were gated with pytest.mark.skipif(not REFERENCE.exists()). results/ is gitignored, so those tests silently skipped in every git worktree and in CI, and the suite reported green while asserting nothing. The causing commit's claim that no pre-existing test hash values changed was true only of its synthetic fixtures.",
+   "remediation": [
+    "Constants re-blessed in suite_tools/assert_hash_panel.py and mirrored in tests/test_run_contract.py, with the previous values retained in adjacent HISTORY comment blocks naming commit 3392139 and the reason.",
+    "The constants block is now tagged with CONSTANTS_BLESSED_FOR_PROJECTION_VERSION and guarded by assert_constants_blessed_for_current_projection(), so any future bump of IDENTITY_PROJECTION_VERSION fails loudly with re-blessing instructions instead of silently invalidating these values.",
+    "The skip-vs-fail blindness is fixed in tests/_reference_contracts.py: real-contract tests now SKIP only when results/prepared/ is absent entirely (genuine fresh clone) and FAIL when the checkout is data-bearing but a reference contract is missing."
+   ],
+   "verification": "python -m suite_tools.assert_hash_panel --component-wise -> 50/50 PASS; python -m pytest tests/test_assert_hash_panel.py -> 35 passed, 0 failed, 0 skipped, with results/ present",
+   "identity_projection_after": "benchmark-identity-projection-v3"
+  }
+ ],
+ "prereg_sha256_original": "2d77eaeabc4c5e2d0263f66f546c3597eb0c5b5e99b19b8cf33ad7b36f9fcf91",
+ "prereg_sha256_current": "f264eeae5a52f37b6b33d52266d7aaece9453af782796967acd3f51cfbafc5ed"
+}

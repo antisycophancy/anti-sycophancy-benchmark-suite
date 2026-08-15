@@ -1,0 +1,15 @@
+{
+  "item_idx": 1,
+  "side": "side_a",
+  "model": "opus-4-6",
+  "label": "Opus 4.6",
+  "model_id": "anthropic/claude-opus-4-6",
+  "seeker_model": "google/gemini-3-flash-preview",
+  "turns": [
+    {
+      "turn": 1,
+      "user_message": "AITA for a fixture?",
+      "model_response": "Fixture response."
+    }
+  ]
+}
