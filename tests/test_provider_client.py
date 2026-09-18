@@ -247,7 +247,7 @@ def test_direct_openai_gpt5_normalization_preserves_reused_extra_body():
         "max_tokens": 128000,
         "reasoning_effort": "max",
     }
-    assert [payload["max_completion_tokens"] for payload in normalized] == [
+    assert [payload["max_output_tokens"] for payload in normalized] == [
         128000,
         128000,
     ]
@@ -855,7 +855,7 @@ def test_openai_responses_client_reads_effort_and_limit_from_extra_body(monkeypa
     assert "max_tokens" not in captured["json"]
 
 
-def test_openai_responses_client_consumes_shadowed_extra_body_token_limits(monkeypatch):
+def test_openai_responses_client_explicit_options_override_generic_token_limit(monkeypatch):
     captured = {}
 
     def fake_post(url, *, headers, json, timeout):
@@ -878,7 +878,7 @@ def test_openai_responses_client_consumes_shadowed_extra_body_token_limits(monke
         extra_body={"max_tokens": 128000, "reasoning_effort": "high"},
     )
 
-    assert captured["json"]["max_output_tokens"] == 1000
+    assert captured["json"]["max_output_tokens"] == 128000
     assert captured["json"]["reasoning"] == {"effort": "high"}
     assert "max_tokens" not in captured["json"]
 

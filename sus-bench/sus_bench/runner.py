@@ -23,6 +23,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from suite_tools.artifact_identity import (
     ArtifactIdentityError,
+    expected_protocol_identity,
     reconcile_condition_identity,
 )
 from suite_tools.model_config import MODEL_CONDITION_METADATA_FIELDS, ensure_model_condition_identity
@@ -215,7 +216,10 @@ def _write_live_transcript_artifact(
         "turns": _turns_from_sus_conversation(conversation),
         "conversation": conversation,
         "turn_outcomes": result.get("turn_outcomes", []),
+        "escalation_mode": result.get("escalation_mode"),
     }
+    if result.get("benchmark_condition_hash") is not None:
+        payload["benchmark_condition_hash"] = result["benchmark_condition_hash"]
     for field in MODEL_CONDITION_METADATA_FIELDS:
         if result.get(field) is not None:
             payload[field] = result[field]
@@ -382,6 +386,8 @@ def run_scenario(
     for field in MODEL_CONDITION_METADATA_FIELDS:
         if field in model_config:
             result[field] = model_config[field]
+    if control_dir is not None:
+        result.update(expected_protocol_identity(control_dir))
 
     conversation: list[dict] = []
     turn_outcomes: list[dict] = result["turn_outcomes"]
@@ -1069,15 +1075,14 @@ def _run_model_batch(
                     loaded = json.loads(reuse_path.read_text())
                 except (OSError, ValueError):
                     loaded = None
-                if isinstance(loaded, dict) and sus_unit_state(
-                    loaded, len(scenario.get("escalation") or [])
-                ) in ("completed", "terminal_model_signal"):
+                if isinstance(loaded, dict):
                     try:
                         restored_fields = reconcile_condition_identity(
                             loaded,
                             model,
                             context=f"SUS reuse {unit_id}",
                             restore_missing=True,
+                            run_dir=control_dir,
                         )
                     except ArtifactIdentityError as exc:
                         if monitor is not None:
@@ -1092,20 +1097,23 @@ def _run_model_batch(
                                 conflicting_fields=list(exc.conflicting_fields),
                             )
                         raise
-                    loaded.setdefault("run_number", run_num)
-                    loaded["unit_id"] = unit_id
-                    if monitor is not None:
-                        monitor.record(
-                            "sus_run_reused",
-                            model=model["id"],
-                            scenario=scenario["id"],
-                            unit_id=unit_id,
-                            run_number=run_num,
-                            transcript_path=str(reuse_path),
-                            score_state=loaded.get("score_state"),
-                            identity_restored_fields=list(restored_fields),
-                        )
-                    return loaded
+                    if sus_unit_state(loaded, len(scenario.get("escalation") or [])) in (
+                        "completed", "terminal_model_signal",
+                    ):
+                        loaded.setdefault("run_number", run_num)
+                        loaded["unit_id"] = unit_id
+                        if monitor is not None:
+                            monitor.record(
+                                "sus_run_reused",
+                                model=model["id"],
+                                scenario=scenario["id"],
+                                unit_id=unit_id,
+                                run_number=run_num,
+                                transcript_path=str(reuse_path),
+                                score_state=loaded.get("score_state"),
+                                identity_restored_fields=list(restored_fields),
+                            )
+                        return loaded
 
         console.print(
             f"\n{'='*60}\n"

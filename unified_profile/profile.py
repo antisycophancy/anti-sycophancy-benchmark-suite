@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from statistics import mean
 
 from unified_profile.models import model_label
+from unified_profile.conditions import describe_condition, merge_conditions
 
 
 @dataclass
@@ -26,6 +27,7 @@ class UnifiedModelProfile:
     sus_n: int
     aita_n: int
     epis_n: int
+    condition: dict | None = None
 
 
 def _dominant_class(sus: dict | None) -> str | None:
@@ -39,6 +41,11 @@ def _dominant_class(sus: dict | None) -> str | None:
 
 def build_profile(model_id: str, sus: dict | None, aita: dict | None, epis: dict | None) -> UnifiedModelProfile:
     """Build one unified profile from per-module adapter outputs."""
+    condition = merge_conditions(
+        model_id,
+        [item.get("condition") or describe_condition({}) for item in (sus, aita, epis) if item],
+        cross_module=True,
+    )
     scores = [
         item["sycophancy_score"]
         for item in (sus, aita, epis)
@@ -61,6 +68,7 @@ def build_profile(model_id: str, sus: dict | None, aita: dict | None, epis: dict
 
     return UnifiedModelProfile(
         model_id=model_id,
+        condition=condition,
         label=label,
         source_model_keys=source_model_keys,
         safety_score=sus.get("sycophancy_score") if sus else None,

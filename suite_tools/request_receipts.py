@@ -14,6 +14,7 @@ from typing import Any, Iterable
 from suite_tools.provider_client import (
     is_anthropic_messages_url,
     is_gemini_generate_content_url,
+    normalize_chat_payload_for_provider,
 )
 from suite_tools.run_contract import load_run_contract, stable_json_hash
 
@@ -32,6 +33,8 @@ _CONTROL_FIELDS = (
 _CONTEXT_FIELDS = (
     "condition_id",
     "model_key",
+    "target_condition_id",
+    "target_model_key",
     "unit_id",
     "item_idx",
     "side",
@@ -157,7 +160,7 @@ def effective_request_controls(
     base_url: str | None = None,
 ) -> dict[str, Any]:
     """Project the provider-effective cap and effort from a request payload."""
-    top = _as_mapping(payload)
+    top = normalize_chat_payload_for_provider(dict(_as_mapping(payload)), base_url=base_url)
     extra = _as_mapping(top.get("extra_body"))
     extra_overrides = (
         is_anthropic_messages_url(base_url)
@@ -204,8 +207,37 @@ def record_effective_request(
         value = context.get(key)
         if value is not None:
             fields[key] = value
+    output_dir = getattr(monitor, "output_dir", None)
+    if output_dir is not None:
+        _require_planned_controls(Path(output_dir), fields)
     monitor.record(RECEIPT_EVENT, **fields)
     return fields
+
+
+def _require_planned_controls(run_dir: Path, receipt: dict[str, Any]) -> None:
+    """Stop a known condition mismatch before transport, not after spending."""
+    requirements = _requirements(load_run_contract(run_dir), {receipt["role"]})
+    candidates = [r for r in requirements if r["model"] == receipt["model"]]
+    if not candidates:
+        return
+    matches = [r for r in candidates if _matching_receipts(r, [receipt], requirements)]
+    if len(matches) != 1:
+        raise RequestConformanceError({"issues": [{
+            "kind": "ambiguous_request_condition", "model": receipt["model"],
+            "role": receipt["role"], "condition_id": receipt.get("condition_id"),
+        }]})
+    requirement = matches[0]
+    issues = []
+    for field, expected in requirement["controls"].items():
+        actual = receipt.get(f"effective_{field}")
+        if actual != expected:
+            issues.append({
+                "kind": "request_mismatch", "role": receipt["role"],
+                "model": receipt["model"], "condition_id": requirement.get("condition_id"),
+                "field": field, "expected": expected, "actual": actual,
+            })
+    if issues:
+        raise RequestConformanceError({"issues": issues})
 
 
 def _expected_controls(entry: dict[str, Any]) -> dict[str, Any]:

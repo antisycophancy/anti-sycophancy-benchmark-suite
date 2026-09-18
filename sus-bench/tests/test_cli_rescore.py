@@ -70,6 +70,97 @@ def _source_result() -> dict:
     }
 
 
+def test_retry_partial_scoring_does_not_add_observations(tmp_path, monkeypatch):
+    first = _source_result()
+    second = _source_result()
+    second["run_number"] = 2
+    second["conversation"][0]["content"] = "second prompt"
+    second["phases"]["elicit"]["prompt"] = "second prompt"
+    (tmp_path / "source-conversations.json").write_text(json.dumps([first, second]))
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fake-key")
+    fail_second = True
+
+    def post_analysis(conversation, *args, **kwargs):
+        if fail_second and conversation[0]["content"] == "second prompt":
+            return None
+        value = 10 if conversation[0]["content"] == "first prompt" else 0
+        return {"irq": value, "pr": value, "er": value, "ca": value, "num_judges": 1}
+
+    monkeypatch.setattr(scorer, "run_post_analysis", post_analysis)
+    args = SimpleNamespace(input=str(tmp_path), files=[], models=None, analyzer_model=None,
+                           judge_panel="test/judge", output=None, score_parallelism=1)
+    with pytest.raises(SystemExit) as exc:
+        cli._cmd_rescore(args)
+    assert exc.value.code == 2
+    partial = tmp_path / "FINAL_RESULTS-partial-conversations.json"
+    before = partial.read_bytes()
+    fail_second = False
+    cli._cmd_rescore(args)
+    saved = json.loads((tmp_path / "FINAL_RESULTS-conversations.json").read_text())
+    assert [row["run_number"] for row in saved] == [1, 2]
+    assert [row["score"]["sus"] for row in saved] == [0, 100]
+    assert partial.read_bytes() == before
+
+
+def test_duplicate_scoring_identity_stops_before_judging(tmp_path, monkeypatch):
+    for name in ("original", "renamed-copy"):
+        (tmp_path / f"{name}-conversations.json").write_text(json.dumps([_source_result()]))
+    monkeypatch.setenv("OPENROUTER_API_KEY", "fake-key")
+    monkeypatch.setattr(scorer, "run_post_analysis", lambda *a, **k: pytest.fail("duplicate caused paid judge work"))
+    with pytest.raises(SystemExit) as exc:
+        cli._cmd_rescore(SimpleNamespace(input=str(tmp_path), files=[], models=None,
+                                       analyzer_model=None, judge_panel="test/judge", output=None))
+    assert exc.value.code == 2
+    assert not (tmp_path / "FINAL_RESULTS.json").exists()
+
+
+@pytest.mark.parametrize("mixed,missing_key", [
+    (False, None), (True, None), (False, "OPENAI_API_KEY"),
+    (True, "OPENAI_API_KEY"), (True, "OPENROUTER_API_KEY"),
+])
+def test_judging_validates_only_actual_panel_credentials(tmp_path, monkeypatch, mixed, missing_key):
+    import suite_tools.env
+    monkeypatch.setattr(suite_tools.env, "load_repo_env_files", lambda: None)
+    configs = [
+        {"model_id": "gpt-test", "base_url": "https://api.openai.com/v1", "api_key_env": "OPENAI_API_KEY"},
+        {"model_id": "claude-test", "base_url": "https://api.anthropic.com/v1/messages", "api_key_env": "ANTHROPIC_API_KEY"},
+    ]
+    if mixed:
+        configs.append({"model_id": "google/gemini-test", "base_url": "https://openrouter.ai/api/v1", "api_key_env": "OPENROUTER_API_KEY"})
+    for key in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    expected = {}
+    for config in configs:
+        key = config["api_key_env"]
+        if key != missing_key:
+            monkeypatch.setenv(key, f"fake-{key}")
+        expected[config["model_id"]] = (config["base_url"], f"fake-{key}")
+    config_path = tmp_path / "models.yaml"
+    config_path.write_text(json.dumps({"models": [], "judge_panel": list(expected), "judge_configs": configs}))
+    (tmp_path / "source-conversations.json").write_text(json.dumps([_source_result()]))
+    calls = []
+
+    def transport(model, messages, api_key, **kwargs):
+        calls.append((model, kwargs.get("base_url"), api_key))
+        return json.dumps({"irq": 10, "pr": 10, "er": 10, "ca": 10,
+            "target_utility": 0, "cap_timing_severity": 0, "self_coaching": 0,
+            "context_retention_failure": 0, "safety_response_failure": 0}), 1
+
+    monkeypatch.setattr(scorer, "call_openrouter", transport)
+    args = SimpleNamespace(input=str(tmp_path), files=[], models=str(config_path),
+                           analyzer_model=None, judge_panel=None, output=None)
+    if missing_key:
+        with pytest.raises(SystemExit):
+            cli._cmd_rescore(args)
+        assert calls == []
+        assert not (tmp_path / "FINAL_RESULTS.json").exists()
+    else:
+        cli._cmd_rescore(args)
+        saved = json.loads((tmp_path / "FINAL_RESULTS-conversations.json").read_text())[0]
+        assert saved["post_analysis"]["num_judges"] == len(configs)
+        assert sorted(calls) == sorted((model, *values) for model, values in expected.items())
+
+
 def test_rescore_uses_configured_judge_panel_and_preserves_source_conversation(tmp_path, monkeypatch):
     source = tmp_path / "source-conversations.json"
     source.write_text(json.dumps([_source_result()]))
@@ -448,6 +539,7 @@ def test_score_command_skips_provider_refusal_exclusions(tmp_path, monkeypatch):
     run_dir = tmp_path / "sus-run"
     run_dir.mkdir()
     excluded = _source_result()
+    excluded["run_number"] = 2
     excluded["score_state"] = "excluded_provider_refusal"
     excluded["exclusion_reason"] = "provider_refusal"
     excluded["conversation"] = [

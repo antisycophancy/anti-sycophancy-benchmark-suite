@@ -480,6 +480,38 @@ def _anthropic_uses_adaptive_effort(payload: dict[str, Any]) -> bool:
     return isinstance(output_config, dict) and bool(output_config.get("effort"))
 
 
+_OUTPUT_TOKEN_KEYS = ("max_output_tokens", "max_completion_tokens", "max_tokens")
+
+
+def _normalize_openai_output_limit(payload: dict[str, Any], base_url: str | None) -> None:
+    if is_anthropic_messages_url(base_url) or is_gemini_generate_content_url(base_url):
+        return
+    extra = payload.get("extra_body")
+    extra = dict(extra) if isinstance(extra, dict) else {}
+    # Frozen request options override a caller's generic default, independent
+    # of model-name heuristics. Use this same normalized payload for receipts.
+    selected = next(
+        ((key, source[key]) for source in (extra, payload)
+         for key in _OUTPUT_TOKEN_KEYS if source.get(key) is not None),
+        None,
+    )
+    if selected is None:
+        return
+    key, cap = selected
+    for alias in _OUTPUT_TOKEN_KEYS:
+        payload.pop(alias, None)
+        extra.pop(alias, None)
+    if is_openai_responses_url(base_url):
+        key = "max_output_tokens"
+    elif key != "max_completion_tokens":
+        key = "max_tokens"
+    payload[key] = cap
+    if extra:
+        payload["extra_body"] = extra
+    else:
+        payload.pop("extra_body", None)
+
+
 def normalize_chat_payload_for_provider(payload: dict[str, Any], *, base_url: str | None) -> dict[str, Any]:
     """Normalize OpenAI-compatible chat payload fields for provider quirks.
 
@@ -490,6 +522,7 @@ def normalize_chat_payload_for_provider(payload: dict[str, Any], *, base_url: st
     ``temperature=0``; when the provider only accepts its default temperature,
     omit the field instead of turning judge calls into avoidable 400s.
     """
+    _normalize_openai_output_limit(payload, base_url)
     if is_openai_native_url(base_url) and model_uses_max_completion_tokens(payload.get("model")):
         extra_body = payload.get("extra_body")
         if isinstance(extra_body, dict):
@@ -1187,19 +1220,11 @@ def _responses_empty_text_error(data: dict[str, Any]) -> ProviderApiError:
 
 
 def _responses_max_output_tokens(kwargs: dict[str, Any], extra_body: dict[str, Any]) -> Any:
-    body_limits = {
-        key: extra_body.pop(key)
-        for key in ("max_output_tokens", "max_completion_tokens", "max_tokens")
-        if key in extra_body
-    }
-    for key in ("max_output_tokens", "max_completion_tokens", "max_tokens"):
-        value = kwargs.get(key)
-        if value is not None:
-            return value
-    for key in ("max_output_tokens", "max_completion_tokens", "max_tokens"):
-        if key in body_limits:
-            return body_limits[key]
-    return None
+    payload = {**kwargs, "extra_body": extra_body}
+    _normalize_openai_output_limit(payload, OPENAI_RESPONSES_URL)
+    for key in _OUTPUT_TOKEN_KEYS:
+        extra_body.pop(key, None)
+    return payload.get("max_output_tokens")
 
 
 def _responses_effort(kwargs: dict[str, Any], extra_body: dict[str, Any]) -> Any:

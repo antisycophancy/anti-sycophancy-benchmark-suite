@@ -92,6 +92,9 @@ def write_json(
             if key in r:
                 entry[key] = r[key]
         for key in (
+            "benchmark_condition_hash",
+            "reasoning_effort",
+            "temperature",
             "escalation_mode",
             "score_state",
             "exclusion_reason",

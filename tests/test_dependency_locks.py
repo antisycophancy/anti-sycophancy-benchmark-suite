@@ -2,6 +2,8 @@ import re
 import tomllib
 from pathlib import Path
 
+from packaging.version import Version
+
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = ROOT / "requirements-release.txt"
@@ -90,6 +92,13 @@ def test_build_isolation_uses_the_hatchling_locked_for_the_release():
         == [f"hatchling=={hatchling_version}"]
         for path in PYPROJECTS
     )
+
+
+def test_release_pip_includes_encoded_url_security_fix():
+    pinned = _locked_requirements()["pip"][0]
+    assert Version(pinned.split("==", 1)[1]) >= Version("26.2")  # CVE-2026-13346
+    assert pinned in INPUT.read_text().splitlines()
+    assert pinned in (ROOT / "constraints.txt").read_text().splitlines()
 
 
 def test_ci_token_is_read_only_and_checkout_does_not_persist_credentials():

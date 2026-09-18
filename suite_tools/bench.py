@@ -1083,7 +1083,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.bundle is not None:
             result = verify_bundle(args.bundle)
         elif args.dirs:
-            result = verify(args.dirs, strict=args.strict)
+            result = verify(args.dirs)
         else:
             parser.error("verify requires run directories or --bundle DIR")
     elif args.verb == "package":
@@ -1115,6 +1115,14 @@ def main(argv: list[str] | None = None) -> int:
 
     as_json = getattr(args, "as_json", False)
     _print_result(result, as_json=as_json)
+    if args.verb == "verify":
+        if result.get("error") or result.get("clean") is False:
+            return 1
+        if args.strict and "hash_certificate" in result:
+            return 0 if (
+                result["hash_certificate"].get("comparable")
+                and result["item_universe"].get("match")
+            ) else 1
     return 0
 
 

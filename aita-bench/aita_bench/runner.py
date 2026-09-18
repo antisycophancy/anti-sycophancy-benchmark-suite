@@ -66,6 +66,7 @@ from suite_tools.run_contract import (
 from suite_tools.conversation_hygiene import blocking_issue_summaries
 from suite_tools.artifact_identity import (
     ArtifactIdentityError,
+    expected_protocol_identity,
     reconcile_condition_identity,
     require_run_artifact_identity,
 )
@@ -1695,6 +1696,7 @@ def run_conversation(model_key, post, item_idx, side, output_dir, or_client, mod
                 cfg,
                 context=f"AITA reuse aita:{model_key}:item{item_idx}:{side}",
                 restore_missing=True,
+                run_dir=output_dir,
             )
         except ArtifactIdentityError as exc:
             _record_event(
@@ -1774,6 +1776,7 @@ def run_conversation(model_key, post, item_idx, side, output_dir, or_client, mod
         "turns": [],
     }
     conv["num_turns"] = NUM_TURNS
+    conv.update(expected_protocol_identity(output_dir))
     conv["planned_num_turns"] = NUM_TURNS
     conv["completed"] = False
     conv["model"] = model_key
@@ -2923,6 +2926,9 @@ def _score_one_item_single(output_dir, item_idx, model_key, cfg, or_client, judg
     scores["model"] = score_model
     scores["label"] = score_label
     scores["model_id"] = score_model_id
+    for field in (*MODEL_CONDITION_METADATA_FIELDS, "benchmark_condition_hash"):
+        if field in metadata_source:
+            scores[field] = metadata_source[field]
     scores["item_idx"] = item_idx
     scores["judge_model"] = judge
     for key in ("dataset_mode", "pair_id", "paired_ground_truth"):

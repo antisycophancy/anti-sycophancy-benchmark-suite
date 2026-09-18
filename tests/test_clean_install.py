@@ -231,3 +231,54 @@ def test_source_verifier_rejects_unsigned_exact_tag_without_manifest(tmp_path):
 
     assert result.returncode != 0
     assert "no valid cryptographic signature" in result.stderr
+
+
+def test_real_ssh_signed_checkout_requires_explicit_local_trust(tmp_path):
+    source = tmp_path / "source"
+    scripts = source / "scripts"
+    scripts.mkdir(parents=True)
+    verifier = scripts / "verify-release-source"
+    verifier.write_bytes((ROOT / "scripts" / "verify-release-source").read_bytes())
+    verifier.chmod(0o755)
+    home = tmp_path / "home"
+    home.mkdir()
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    env.update(HOME=str(home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    key = tmp_path / "test-signing-key"
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key)], check=True, env=env)
+
+    def git(*args):
+        return subprocess.run(["git", "-C", str(source), *args], check=True,
+                              capture_output=True, text=True, env=env)
+
+    git("init", "-q")
+    git("config", "user.name", "Release Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    git("config", "gpg.format", "ssh")
+    git("config", "user.signingkey", str(key))
+    git("add", "scripts/verify-release-source")
+    git("-c", "commit.gpgsign=false", "commit", "-qm", "synthetic source")
+    git("tag", "-s", "v1.0.0", "-m", "synthetic release")
+    checkout = tmp_path / "checkout"
+    subprocess.run(["git", "clone", "--quiet", str(source), str(checkout)], check=True, env=env)
+    source = checkout
+    git("checkout", "--detach", "v1.0.0")
+    verifier = source / "scripts" / "verify-release-source"
+    rejected = subprocess.run([str(verifier)], env=env, capture_output=True, text=True)
+    assert rejected.returncode != 0
+    assert "allowedSignersFile" in rejected.stderr
+    assert "no valid cryptographic signature" not in rejected.stderr
+
+    trust = source / ".git" / "release-trust"
+    trust.mkdir()
+    allowed = trust / "allowed_signers"
+    allowed.write_text("fixture@example.invalid " + key.with_suffix(".pub").read_text())
+    git("config", "--local", "gpg.ssh.allowedSignersFile", str(allowed))
+    accepted = subprocess.run([str(verifier)], env=env, capture_output=True, text=True)
+    assert accepted.returncode == 0, accepted.stderr
+    assert "signed Git tag 'v1.0.0' verified" in accepted.stdout
+
+    verifier.write_text(verifier.read_text() + "\n# changed after signing\n")
+    dirty = subprocess.run([str(verifier)], env=env, capture_output=True, text=True)
+    assert dirty.returncode != 0
+    assert "tracked files differ" in dirty.stderr

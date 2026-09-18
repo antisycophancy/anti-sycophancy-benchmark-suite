@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterable
 
 from suite_tools.suite_registry import get_suite
+from unified_profile.conditions import describe_condition, merge_conditions
 from unified_profile.models import canonicalize_model_id, model_label
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,25 @@ def _as_paths(path_or_paths: Path | str | Iterable[Path | str]) -> list[Path]:
     if isinstance(path_or_paths, (str, Path)):
         return [Path(path_or_paths)]
     return [Path(p) for p in path_or_paths]
+
+
+def _unique_files(roots, discover) -> list[Path]:
+    paths = sorted({path.resolve() for root in _as_paths(roots) for path in discover(root)})
+    if discover is _supported_sus_files:
+        final_dirs = {p.parent for p in paths if p.name == "FINAL_RESULTS-conversations.json"}
+        paths = [p for p in paths if p.parent not in final_dirs or p.name == "FINAL_RESULTS-conversations.json"]
+    return paths
+
+
+def _record_observation(seen: set, path: Path, model_id: str, row: dict, *, module: str, fallback=None) -> None:
+    number = row.get("run_number" if module == "sus" else "item_idx", fallback)
+    if number is None:
+        return  # Legacy rows without unit identifiers cannot be deduplicated reliably.
+    subtype = row.get("scenario") if module == "sus" else row.get("test_type")
+    key = (path.parent, model_id, subtype, str(number))
+    if key in seen:
+        raise ValueError(f"Duplicate {module} observation for {model_id} in {path.parent}")
+    seen.add(key)
 
 
 def _load_json(path: Path) -> object | None:
@@ -60,6 +80,8 @@ def _supported_sus_files(path: Path) -> list[Path]:
         return []
     files = []
     for candidate in sorted(path.rglob("*.json")):
+        if candidate.name.startswith(("FINAL_RESULTS-partial", "sus-rescore-partial")):
+            continue
         if candidate.name.endswith("-conversations.json"):
             files.append(candidate)
         else:
@@ -100,30 +122,31 @@ def load_sus_results(results_dir: Path | str | Iterable[Path | str]) -> dict[str
     grouped: dict[str, list[dict]] = defaultdict(list)
     source_paths: dict[str, set[str]] = defaultdict(set)
     labels: dict[str, str] = {}
+    seen_observations: set = set()
 
-    for root in _as_paths(results_dir):
-        for path in _supported_sus_files(root):
-            data = _load_json(path)
-            if isinstance(data, list):
-                results = data
-            elif isinstance(data, dict) and isinstance(data.get("results"), list):
-                results = data["results"]
-            else:
+    for path in _unique_files(results_dir, _supported_sus_files):
+        data = _load_json(path)
+        if isinstance(data, list):
+            results = data
+        elif isinstance(data, dict) and isinstance(data.get("results"), list):
+            results = data["results"]
+        else:
+            continue
+
+        for raw_result in results:
+            if not isinstance(raw_result, dict):
                 continue
-
-            for raw_result in results:
-                if not isinstance(raw_result, dict):
-                    continue
-                score = _sus_score(raw_result)
-                if score is None:
-                    continue
-                result = _normalised_sus_result(raw_result)
-                model_key = str(result.get("model") or result.get("model_id") or "unknown")
-                model_id = canonicalize_model_id(model_key)
-                labels.setdefault(model_id, result.get("label") or model_label(model_id, model_key))
-                classified = classify_result(result)
-                grouped[model_id].append({"result": result, "score": score, "classified": classified, "source_model_key": model_key})
-                source_paths[model_id].add(str(path))
+            score = _sus_score(raw_result)
+            if score is None:
+                continue
+            result = _normalised_sus_result(raw_result)
+            model_key = str(result.get("model") or result.get("model_id") or "unknown")
+            model_id = canonicalize_model_id(str(result.get("model_id") or model_key))
+            _record_observation(seen_observations, path, model_id, result, module="sus")
+            labels.setdefault(model_id, result.get("label") or model_label(model_id, model_key))
+            classified = classify_result(result)
+            grouped[model_id].append({"result": result, "score": score, "classified": classified, "source_model_key": model_key})
+            source_paths[model_id].add(str(path))
 
     profiles = {}
     for model_id, rows in grouped.items():
@@ -143,6 +166,7 @@ def load_sus_results(results_dir: Path | str | Iterable[Path | str]) -> dict[str
         source_keys = sorted({row["source_model_key"] for row in rows})
 
         profiles[model_id] = {
+            "condition": merge_conditions(model_id, [describe_condition(row["result"]) for row in rows]),
             "model_id": model_id,
             "source_model_key": ", ".join(source_keys),
             "label": labels.get(model_id, model_label(model_id)),
@@ -348,34 +372,46 @@ def load_aita_results(results_path: Path | str | Iterable[Path | str]) -> dict[s
     grouped: dict[str, list[dict]] = defaultdict(list)
     n_by_alias: dict[str, int] = defaultdict(int)
     source_paths: dict[str, set[str]] = defaultdict(set)
+    source_aliases: dict[str, set[str]] = defaultdict(set)
+    seen_observations: set = set()
 
-    for root in _as_paths(results_path):
-        for path in _supported_aita_files(root):
-            data = _load_json(path)
-            if not isinstance(data, dict):
-                continue
+    for path in _unique_files(results_path, _supported_aita_files):
+        data = _load_json(path)
+        if not isinstance(data, dict):
+            continue
 
-            if isinstance(data.get("scores"), dict):
-                for key, score_row in data["scores"].items():
-                    if not isinstance(score_row, dict) or not score_row:
-                        continue
-                    alias = _aita_alias_from_key(key)
-                    grouped[alias].append(score_row)
-                    n_by_alias[alias] += 1
-                    source_paths[alias].add(str(path))
-            elif all(isinstance(v, dict) for v in data.values()) and any("outcome_a" in v for v in data.values()):
-                for alias, metrics in data.items():
-                    rows, n_items = _aita_rows_from_aggregate(metrics)
-                    if not rows:
-                        continue
-                    grouped[alias].extend(rows)
-                    n_by_alias[alias] += n_items or len(rows)
-                    source_paths[alias].add(str(path))
-            elif any(key in data for key in ("outcome_a", "outcome_b", "resistance_a", "resistance_b", "therapeutic_a", "therapeutic_b", "consistency")):
-                alias = _aita_alias_from_score_file(path, data)
-                grouped[alias].append(data)
+        if isinstance(data.get("scores"), dict):
+            for key, score_row in data["scores"].items():
+                if not isinstance(score_row, dict) or not score_row:
+                    continue
+                source_key = _aita_alias_from_key(key)
+                alias = str(score_row.get("model_id") or source_key)
+                match = re.search(r"_item(\d+)$", key)
+                _record_observation(
+                    seen_observations, path, canonicalize_model_id(alias), score_row,
+                    module="aita", fallback=match.group(1) if match else None,
+                )
+                grouped[alias].append(score_row)
                 n_by_alias[alias] += 1
                 source_paths[alias].add(str(path))
+                source_aliases[alias].add(source_key)
+        elif all(isinstance(v, dict) for v in data.values()) and any("outcome_a" in v for v in data.values()):
+            for alias, metrics in data.items():
+                rows, n_items = _aita_rows_from_aggregate(metrics)
+                if not rows:
+                    continue
+                grouped[alias].extend(rows)
+                n_by_alias[alias] += n_items or len(rows)
+                source_paths[alias].add(str(path))
+                source_aliases[alias].add(alias)
+        elif any(key in data for key in ("outcome_a", "outcome_b", "resistance_a", "resistance_b", "therapeutic_a", "therapeutic_b", "consistency")):
+            source_key = _aita_alias_from_score_file(path, data)
+            alias = str(data.get("model_id") or source_key)
+            _record_observation(seen_observations, path, canonicalize_model_id(alias), data, module="aita")
+            grouped[alias].append(data)
+            n_by_alias[alias] += 1
+            source_paths[alias].add(str(path))
+            source_aliases[alias].add(source_key)
 
     merged: dict[str, dict] = {}
     for alias, rows in grouped.items():
@@ -384,7 +420,7 @@ def load_aita_results(results_path: Path | str | Iterable[Path | str]) -> dict[s
         if score is None:
             continue
         existing = merged.get(model_id)
-        source_keys = [alias]
+        source_keys = sorted(source_aliases[alias])
         paths = sorted(source_paths[alias])
         if existing:
             source_keys = existing["metadata"]["source_model_keys"] + source_keys
@@ -393,6 +429,7 @@ def load_aita_results(results_path: Path | str | Iterable[Path | str]) -> dict[s
 
         score, raw = _aita_score_from_rows(rows)
         merged[model_id] = {
+            "condition": merge_conditions(model_id, [describe_condition(row) for row in rows]),
             "model_id": model_id,
             "source_model_key": ", ".join(sorted(set(source_keys))),
             "label": model_label(model_id, alias),
@@ -437,23 +474,25 @@ def load_epis_results(results_dir: Path | str | Iterable[Path | str]) -> dict[st
     source_keys: dict[str, set[str]] = defaultdict(set)
     source_paths: dict[str, set[str]] = defaultdict(set)
     labels: dict[str, str] = {}
+    seen_observations: set = set()
 
-    for root in _as_paths(results_dir):
-        for path in _supported_epis_files(root):
-            data = _load_json(path)
-            if not isinstance(data, dict):
-                continue
-            source_key = str(data.get("model") or data.get("model_id") or _epis_model_from_filename(path))
-            model_id = canonicalize_model_id(source_key)
-            grouped[model_id].append(data)
-            source_keys[model_id].add(source_key)
-            source_paths[model_id].add(str(path))
-            labels.setdefault(model_id, model_label(model_id, data.get("label") or source_key))
+    for path in _unique_files(results_dir, _supported_epis_files):
+        data = _load_json(path)
+        if not isinstance(data, dict):
+            continue
+        source_key = str(data.get("model") or data.get("model_id") or _epis_model_from_filename(path))
+        model_id = canonicalize_model_id(str(data.get("model_id") or source_key))
+        _record_observation(seen_observations, path, model_id, data, module="epis")
+        grouped[model_id].append(data)
+        source_keys[model_id].add(source_key)
+        source_paths[model_id].add(str(path))
+        labels.setdefault(model_id, model_label(model_id, data.get("label") or source_key))
 
     profiles = {}
     for model_id, rows in grouped.items():
         agg = compute_epistemic_sycophancy_score(rows)
         profiles[model_id] = {
+            "condition": merge_conditions(model_id, [describe_condition(row) for row in rows]),
             "model_id": model_id,
             "source_model_key": ", ".join(sorted(source_keys[model_id])),
             "label": labels.get(model_id, model_label(model_id)),

@@ -202,16 +202,42 @@ The release is ordinary readable Python and text. Verification only checks
 that the files you downloaded match the files we published. It does not
 encrypt or obfuscate the software.
 
-The easiest supported path is a signed Git release tag. Verify the tag, then
-let bootstrap check the source and install the locked dependencies.
+The easiest supported path is a signed Git release tag. The tags use SSH
+signatures, so a fresh Git installation needs an allowed-signers file before
+`git verify-tag` can authenticate the release. Configure trust only for this
+checkout, not globally.
 
 ```bash
 git clone https://github.com/antisycophancy/anti-sycophancy-benchmark-suite.git antisycophancy
 cd antisycophancy
 git checkout --detach v1.0.0
+mkdir -p .git/release-trust
+curl --fail --location \
+  https://github.com/antisycophancy/anti-sycophancy-benchmark-suite/releases/download/v1.0.0/antisycophancy-release-signing-key.pub \
+  --output .git/release-trust/publisher.pub
+ssh-keygen -lf .git/release-trust/publisher.pub
+```
+
+The expected ED25519 fingerprint is
+`SHA256:GwSH9L9yBr+CaoBKJhkodUauyufXy0aco4kZ2zHt+7Y`, for
+`research@antisycophancy.ai`. Confirm this fingerprint through a trusted
+publisher channel before accepting the key. Downloading a key and software
+from the same location is not independent proof of publisher identity. Stop
+if the fingerprint differs; do not bypass verification.
+
+After confirming the fingerprint, install the repository-local trust entry:
+
+```bash
+printf 'research@antisycophancy.ai %s\n' "$(cat .git/release-trust/publisher.pub)" \
+  > .git/release-trust/allowed_signers
+git config --local gpg.ssh.allowedSignersFile "$(pwd)/.git/release-trust/allowed_signers"
 git verify-tag v1.0.0
 PYTHON_BIN=python3 ./scripts/bootstrap
 ```
+
+An `allowedSignersFile` error means signer trust is missing or unreadable, not
+that the tag is necessarily forged. A signature failure after trust setup
+must still stop installation. Bootstrap never disables either check.
 
 You can also use a signed release archive. After verifying its detached
 signature, check the extracted files and run the same bootstrap.

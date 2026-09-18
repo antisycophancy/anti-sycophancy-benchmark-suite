@@ -518,6 +518,20 @@ def _judge_api_key(judge: str | dict[str, Any], default_api_key: str) -> str:
     return default_api_key
 
 
+def validate_judge_credentials(judges: list, default_api_key: str) -> bool:
+    """Check the whole panel before spend; return whether it uses OpenRouter."""
+    from suite_tools.credential_policy import normalized_url_host
+
+    uses_openrouter = False
+    for judge in judges:
+        if not _judge_api_key(judge, default_api_key):
+            raise ValueError("missing API key $OPENROUTER_API_KEY for configured judge")
+        base_url = judge.get("base_url") if isinstance(judge, dict) else None
+        route = normalized_url_host(base_url or "https://openrouter.ai/api/v1")
+        uses_openrouter |= bool(route and route[1] == "openrouter.ai")
+    return uses_openrouter
+
+
 def _judge_request_options(judge: str | dict[str, Any]) -> dict[str, Any] | None:
     if isinstance(judge, dict) and isinstance(judge.get("request_options"), dict):
         return judge["request_options"]
@@ -607,6 +621,17 @@ def _single_judge_score_status(
     base_url = judge.get("base_url") if isinstance(judge, dict) else None
     request_options = _judge_request_options(judge)
     reasoning_effort = _judge_reasoning_effort(judge)
+    request_context = dict(call_context or {})
+    # A judge call must match the judge's frozen condition, not its target's.
+    for field in ("condition_id", "model_key"):
+        value = request_context.pop(field, None)
+        if value is not None:
+            request_context[f"target_{field}"] = value
+    if isinstance(judge, dict):
+        if judge.get("condition_id") is not None:
+            request_context["condition_id"] = judge["condition_id"]
+        if judge.get("key") is not None:
+            request_context["model_key"] = judge["key"]
     paid_call_number = 0
 
     def call_judge(messages: list[dict[str, str]]) -> tuple[str, int]:
@@ -637,7 +662,7 @@ def _single_judge_score_status(
                 timeout=300,
                 role="judge",
                 monitor=monitor,
-                request_context=call_context,
+                request_context=request_context,
             )
         except Exception as exc:
             if monitor is not None:

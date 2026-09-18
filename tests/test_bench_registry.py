@@ -1,5 +1,7 @@
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -7,6 +9,38 @@ from suite_tools import bench
 from suite_tools import assert_hash_panel as ahp
 from suite_tools.live_dashboard import DISPOSITION_SCHEMA_VERSION
 from suite_tools.run_contract import legacy_v1_provenance_hashes, legacy_v3_provenance_hashes
+
+
+@pytest.mark.parametrize("case", ["missing", "invalid_bundle", "drift", "missing_pair"])
+def test_verify_cli_failure_has_nonzero_exit_and_json(tmp_path, case):
+    args = ["verify", "--json"]
+    if case == "invalid_bundle":
+        args += ["--bundle", str(tmp_path)]
+    elif case == "drift":
+        args += [str(_run(tmp_path, "drift", "sus"))]
+    else:
+        args += [str(tmp_path / "missing")]
+        if case == "missing_pair":
+            args += [str(tmp_path / "also-missing")]
+        args += ["--strict"]
+    result = subprocess.run(
+        [sys.executable, "-m", "suite_tools.bench", *args],
+        cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True,
+    )
+    payload = json.loads(result.stdout)
+    assert payload.get("error") or payload.get("clean") is False
+    assert result.returncode != 0
+
+
+def test_strict_comparison_failure_still_emits_json(tmp_path, capsys):
+    a = _run(tmp_path, "a", "aita")
+    b = _run(tmp_path, "b", "aita")
+    path = b / "RUN_CONTRACT.json"
+    contract = json.loads(path.read_text())
+    contract["identity"]["sample_spec"]["item_indices"] = [9]
+    path.write_text(json.dumps(contract))
+    assert bench.main(["verify", str(a), str(b), "--strict", "--json"]) == 1
+    assert json.loads(capsys.readouterr().out)["hash_certificate"]["comparable"] is False
 
 
 def _run(root: Path, name: str, module: str, *, attempt: int = 1,

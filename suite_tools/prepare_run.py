@@ -23,6 +23,7 @@ from typing import Any
 
 import yaml
 
+from suite_tools.artifact_identity import ARTIFACT_PROTOCOL_VERSION
 from suite_tools.cost_estimate import (
     build_contract_call_plan,
     estimate_call_plan,
@@ -500,6 +501,21 @@ def _write_rendered_config(
     return path
 
 
+def _claim_preparation_directory(run_group_dir: Path, module: str) -> Path:
+    module_dir = run_group_dir / module
+    plan = load_run_plan(run_group_dir)
+    if (
+        module_dir.exists()
+        or any((run_group_dir / "_configs").glob(f"*/{module}-models.yaml"))
+        or any(entry.get("module") == module for entry in plan.get("modules", []))
+    ):
+        raise FileExistsError(f"Preparation already exists for {module}; use a new output path/run ID")
+    # mkdir is the exclusive claim: a second same-module preparer cannot reach
+    # either config or contract writes. Failed preparations are left intact.
+    module_dir.mkdir(parents=True, exist_ok=False)
+    return module_dir
+
+
 def _prepared_config_binding(config_path: Path, run_group_dir: Path) -> dict[str, Any]:
     """Return the run-group-relative identity binding for rendered YAML bytes."""
     resolved_root = run_group_dir.resolve()
@@ -636,8 +652,7 @@ def prepare_sus_run(
     validate_suite_config(suite_config)
 
     run_group_dir = output_root
-    module_dir = run_group_dir / "sus"
-    module_dir.mkdir(parents=True, exist_ok=True)
+    module_dir = _claim_preparation_directory(run_group_dir, "sus")
     config_path = _write_rendered_config(
         suite_config=suite_config,
         run_group_dir=run_group_dir,
@@ -778,6 +793,7 @@ def prepare_sus_run(
     contract_path = write_run_contract(
         module_dir,
         {
+            "artifact_protocol_version": ARTIFACT_PROTOCOL_VERSION,
             "run_id": run_id,
             "lifecycle_state": "prepared",
             "source_command": source_command,
@@ -897,8 +913,7 @@ def prepare_aita_run(
     aita_runner = _load_aita_runner()
 
     run_group_dir = output_root
-    module_dir = run_group_dir / "aita"
-    module_dir.mkdir(parents=True, exist_ok=True)
+    module_dir = _claim_preparation_directory(run_group_dir, "aita")
     config_path = _write_rendered_config(
         suite_config=suite_config,
         run_group_dir=run_group_dir,
@@ -1106,6 +1121,7 @@ def prepare_aita_run(
     contract_path = write_run_contract(
         module_dir,
         {
+            "artifact_protocol_version": ARTIFACT_PROTOCOL_VERSION,
             "run_id": run_id,
             "lifecycle_state": "prepared",
             "source_command": source_command,
@@ -1212,8 +1228,7 @@ def prepare_epis_run(
     epis_prompts = _load_epis_prompts()
 
     run_group_dir = output_root
-    module_dir = run_group_dir / "epis"
-    module_dir.mkdir(parents=True, exist_ok=True)
+    module_dir = _claim_preparation_directory(run_group_dir, "epis")
     config_path = _write_rendered_config(
         suite_config=suite_config,
         run_group_dir=run_group_dir,
@@ -1389,6 +1404,7 @@ def prepare_epis_run(
     contract_path = write_run_contract(
         module_dir,
         {
+            "artifact_protocol_version": ARTIFACT_PROTOCOL_VERSION,
             "run_id": run_id,
             "lifecycle_state": "prepared",
             "source_command": source_command,

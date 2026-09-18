@@ -83,11 +83,11 @@ def test_clean_install_upgrades_to_the_audited_pip_constraint():
     readme = (ROOT / "README.md").read_text()
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
 
-    assert "pip==26.1.2" in constraints
+    assert "pip==26.2" in constraints
     bootstrap = (ROOT / "scripts" / "bootstrap").read_text()
     lock = (ROOT / "requirements-release.txt").read_text()
     assert "--require-hashes" in bootstrap
-    assert "pip==26.1.2" in lock
+    assert "pip==26.2" in lock
     assert "constraints.txt" not in bootstrap
     assert "scripts/bootstrap" in readme
     assert "scripts/bootstrap" in workflow

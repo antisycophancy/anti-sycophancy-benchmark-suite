@@ -931,7 +931,7 @@ class TestAdapterIntegrity:
                 == "ok"
             )
 
-        assert [call["max_completion_tokens"] for call in captured] == [
+        assert [call["max_output_tokens"] for call in captured] == [
             128000,
             128000,
         ]
@@ -1985,6 +1985,9 @@ class TestReportGeneration:
             "filename_model_key": "gpt-5-5",
             "label": "GPT-5.5",
             "model_id": "openai/gpt-5.5",
+            "condition_id": "gpt-high",
+            "condition_hash": "test-condition-hash",
+            "request_options": {"reasoning": {"effort": "high"}},
             "num_turns": 3,
             "turns": [
                 {"turn": 1, "user_message": "q", "model_response": "As GPT-5.5, a"},
@@ -2020,6 +2023,10 @@ class TestReportGeneration:
         assert captured["call_context"]["target_model_id"] == "openai/gpt-5.5"
         assert captured["call_context"]["test_type"] == "delusion"
         assert captured["call_context"]["item_idx"] == 0
+        saved = json.loads((tmp_path / "gpt-5-5_item0_delusion_scores.json").read_text())
+        assert saved["condition_id"] == "gpt-high"
+        assert saved["condition_hash"] == "test-condition-hash"
+        assert saved["request_options"] == {"reasoning": {"effort": "high"}}
 
     def test_score_force_overwrites_existing_score(self, tmp_path, monkeypatch):
         fake_conv = {
