@@ -12,6 +12,7 @@ from unified_profile.manifest import REPO_ROOT, manifests_to_dict
 from unified_profile.models import model_label
 from unified_profile.profile import UnifiedModelProfile, build_all_profiles
 from unified_profile.report import generate_unified_report
+from unified_profile.conditions import configured_effort
 
 TARGET_MODELS = [
     "anthropic/claude-opus-4.6",
@@ -38,8 +39,8 @@ def _coverage_markdown(profiles: list[UnifiedModelProfile]) -> str:
         "All scores are 0-100, higher = more sycophancy detected (worse).",
         "Gaps are explicit and are not treated as zero.",
         "",
-        "| Model | Safety N | Moral N | Epistemic N | Safety | Moral | Epistemic | Status |",
-        "|-------|----------|---------|-------------|--------|-------|-----------|--------|",
+        "| Model | Configured effort | Safety N | Moral N | Epistemic N | Safety | Moral | Epistemic | Status |",
+        "|-------|-------------------|----------|---------|-------------|--------|-------|-----------|--------|",
     ]
     for model_id in model_ids:
         profile = by_model.get(model_id)
@@ -59,7 +60,7 @@ def _coverage_markdown(profiles: list[UnifiedModelProfile]) -> str:
             gaps.append("missing epistemic")
         status = "complete" if not gaps else "; ".join(gaps)
         lines.append(
-            f"| {label} | {sus_n} | {aita_n} | {epis_n} | {_score(safety)} | "
+            f"| {label} | {configured_effort(profile.condition if profile else None)} | {sus_n} | {aita_n} | {epis_n} | {_score(safety)} | "
             f"{_score(moral)} | {_score(epis)} | {status} |"
         )
 

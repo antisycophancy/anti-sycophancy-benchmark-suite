@@ -385,6 +385,7 @@ class _MonitoredCompletions:
         )
         from suite_tools.paid_call_lease import paid_call_lease, provider_from_base_url
         from suite_tools.request_receipts import record_effective_request
+        from suite_tools.provider_client import normalize_chat_payload_for_provider
 
         diagnostic_context = kwargs.pop("_benchmark_request_context", None)
         if not isinstance(diagnostic_context, dict):
@@ -397,6 +398,9 @@ class _MonitoredCompletions:
         base_url = self._base_url
         if base_url is None:
             base_url = getattr(self._completions, "base_url", None)
+        normalize_chat_payload_for_provider(
+            kwargs, base_url=str(base_url) if base_url is not None else None,
+        )
         provider = provider_from_base_url(str(base_url) if base_url is not None else None)
         receipt: dict[str, Any] = {}
         if self._monitor is not None:

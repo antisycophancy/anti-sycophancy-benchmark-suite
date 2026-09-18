@@ -1525,7 +1525,7 @@ def test_api_call_reuses_direct_openai_request_options_without_losing_cap(
             },
         ) == "model response"
 
-    assert [call["max_completion_tokens"] for call in captured] == [
+    assert [call["max_output_tokens"] for call in captured] == [
         128000,
         128000,
     ]
@@ -3475,6 +3475,9 @@ def test_score_all_prefers_transcript_metadata_for_blinding_and_scores(tmp_path,
         "model": "gemini-3-1-pro",
         "label": "Gemini 3.1 Pro",
         "model_id": "google/gemini-3.1-pro-preview",
+        "condition_id": "gemini-high",
+        "condition_hash": "test-condition-hash",
+        "request_options": {"reasoning": {"effort": "high"}},
         "turns": [
             {"turn": 1, "user_message": "u1", "model_response": "a1"},
             {"turn": 2, "user_message": "u2", "model_response": "a2"},
@@ -3509,6 +3512,9 @@ def test_score_all_prefers_transcript_metadata_for_blinding_and_scores(tmp_path,
     saved = json.loads((tmp_path / "gemini-3-1-pro_item0_scores.json").read_text())
     assert saved["label"] == "Gemini 3.1 Pro"
     assert saved["model_id"] == "google/gemini-3.1-pro-preview"
+    assert saved["condition_id"] == "gemini-high"
+    assert saved["condition_hash"] == "test-condition-hash"
+    assert saved["request_options"] == {"reasoning": {"effort": "high"}}
 
 
 def _write_single_judge_pair_artifacts(tmp_path, model_key, *, ground_truth_a="NTA", ground_truth_b="YTA"):

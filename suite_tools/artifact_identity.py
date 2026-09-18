@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any, Mapping, MutableMapping
 
 from suite_tools.model_config import MODEL_CONDITION_METADATA_FIELDS
-from suite_tools.run_contract import IDENTITY_PROJECTION_VERSION
+from suite_tools.run_contract import IDENTITY_PROJECTION_VERSION, load_run_contract
+
+ARTIFACT_PROTOCOL_VERSION = "benchmark-artifact-protocol-v1"
 
 
 class ArtifactIdentityError(ValueError):
@@ -41,12 +43,35 @@ def expected_condition_identity(model_config: Mapping[str, Any]) -> dict[str, An
     }
 
 
+def expected_protocol_identity(
+    run_dir: str | Path, *, contract: Mapping[str, Any] | None = None,
+) -> dict[str, str]:
+    """New preparations bind artifacts to the protocol, sample and judge panel.
+
+    Legacy contracts are not silently upgraded or rewritten. Their historical
+    artifacts remain readable, but cannot satisfy a new preparation's binding.
+    """
+    if contract is None:
+        contract = load_run_contract(run_dir)
+    version = contract.get("artifact_protocol_version")
+    if version is None:
+        return {}
+    if version != ARTIFACT_PROTOCOL_VERSION:
+        raise ValueError(f"Unsupported artifact protocol version: {version}")
+    provenance = contract.get("provenance") or {}
+    value = provenance.get("benchmark_condition_hash")
+    if not isinstance(value, str) or not value:
+        raise ArtifactIdentityError("run contract", missing_fields=["benchmark_condition_hash"])
+    return {"benchmark_condition_hash": value}
+
+
 def reconcile_condition_identity(
     artifact: MutableMapping[str, Any],
     model_config: Mapping[str, Any],
     *,
     context: str,
     restore_missing: bool,
+    run_dir: str | Path | None = None,
 ) -> tuple[str, ...]:
     """Validate an artifact against a rendered condition and optionally restore gaps.
 
@@ -55,6 +80,14 @@ def reconcile_condition_identity(
     legacy/resumed artifact may be enriched in memory or must already be complete.
     """
     expected = expected_condition_identity(model_config)
+    protocol = expected_protocol_identity(run_dir) if run_dir is not None else {}
+    missing_protocol = [field for field in protocol if artifact.get(field) is None]
+    conflicting_protocol = [field for field, value in protocol.items()
+                            if artifact.get(field) is not None and artifact[field] != value]
+    if missing_protocol or conflicting_protocol:
+        raise ArtifactIdentityError(
+            context, missing_fields=missing_protocol, conflicting_fields=conflicting_protocol,
+        )
     missing = [field for field in expected if artifact.get(field) is None]
     conflicting = [
         field
@@ -102,6 +135,7 @@ def evaluate_run_artifact_identity(
     if contract is None:
         contract = json.loads((run_path / "RUN_CONTRACT.json").read_text())
     conditions = _contract_conditions(contract)
+    protocol = expected_protocol_identity(run_path, contract=contract)
     issues: list[dict[str, Any]] = []
     checked_artifacts = 0
     checkable_artifacts = 0
@@ -156,6 +190,7 @@ def evaluate_run_artifact_identity(
                 field: condition[field]
                 for field in ("condition_id", "condition_hash")
             }
+            expected.update(protocol)
             checkable_artifacts += 1
             try:
                 artifact = json.loads(artifact_path.read_text())

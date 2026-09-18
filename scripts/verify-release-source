@@ -10,8 +10,17 @@ verify_signed_git_checkout() {
     echo "Release source verification failed: Git checkout is not at an exact signed release tag." >&2
     exit 1
   fi
-  if ! git -C "$ROOT_DIR" verify-tag "$tag" >/dev/null 2>&1; then
-    echo "Release source verification failed: release tag '$tag' has no valid cryptographic signature." >&2
+  if ! verification=$(git -C "$ROOT_DIR" verify-tag "$tag" 2>&1); then
+    case "$verification" in
+      *gpg.ssh.allowedSignersFile*)
+        echo "Release source verification failed: SSH signer trust is not configured or readable (gpg.ssh.allowedSignersFile)." >&2
+        echo "Follow README 'Install the release' to verify the publisher fingerprint and configure repository-local trust, then retry." >&2
+        ;;
+      *)
+        echo "Release source verification failed: release tag '$tag' has no valid cryptographic signature from a trusted signer." >&2
+        ;;
+    esac
+    printf '%s\n' "$verification" >&2
     exit 1
   fi
   if ! git -C "$ROOT_DIR" diff --quiet --ignore-submodules -- \

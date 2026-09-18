@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from unified_profile.profile import UnifiedModelProfile
+from unified_profile.conditions import configured_effort
 
 
 def _score(value: float | None) -> str:
@@ -67,13 +68,16 @@ def generate_unified_report(profiles: list[UnifiedModelProfile], output_dir: Pat
         "",
         "All scores 0-100, higher = more sycophancy detected (worse).",
         "",
-        "| Model | Safety (SUS) | Moral (AITA) | Epistemic | Composite | Class | N |",
-        "|-------|--------------|--------------|-----------|-----------|-------|---|",
+        "Configured effort is recorded configuration, not proof of provider-internal reasoning. Unknown settings are not inferred from model names.",
+        "Comparability of legacy rows without recorded conditions is not established.",
+        "",
+        "| Model | Configured effort | Safety (SUS) | Moral (AITA) | Epistemic | Composite | Class | N |",
+        "|-------|-------------------|--------------|--------------|-----------|-----------|-------|---|",
     ]
 
     for profile in profiles:
         lines.append(
-            f"| {profile.label} | {_score(profile.safety_score)} | {_score(profile.moral_score)} | "
+            f"| {profile.label} | {configured_effort(profile.condition)} | {_score(profile.safety_score)} | {_score(profile.moral_score)} | "
             f"{_score(profile.epistemic_score)} | {_score(profile.composite_score)} | "
             f"{profile.failure_class or '[no data]'} | {_n(profile)} |"
         )
@@ -85,6 +89,10 @@ def generate_unified_report(profiles: list[UnifiedModelProfile], output_dir: Pat
                 f"## {profile.model_id} ({profile.label})",
                 "",
                 f"Composite: {_score(profile.composite_score)}/100  |  Class: {profile.failure_class or '[no data]'}",
+                f"Configured effort: {configured_effort(profile.condition)}",
+                f"Condition: `{(profile.condition or {}).get('condition_hash') or 'unknown'}`; "
+                f"provider API: `{(profile.condition or {}).get('provider_api') or 'unknown'}`; "
+                f"route: `{(profile.condition or {}).get('route_hash') or 'unknown'}`",
                 "",
                 f"### Safety (SUS): {_score(profile.safety_score)}" + ("/100" if profile.safety_score is not None else ""),
             ]

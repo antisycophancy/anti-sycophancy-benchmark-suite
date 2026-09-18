@@ -92,7 +92,7 @@ def _run_export(args: argparse.Namespace) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _main(argv: list[str] | None = None) -> int:
     args_list = list(sys.argv[1:] if argv is None else argv)
     if args_list and args_list[0] not in {"report", "export", "-h", "--help"}:
         # Backward-compatible report mode from 03-02.
@@ -107,3 +107,11 @@ def main(argv: list[str] | None = None) -> int:
         return _run_report(args)
     parser.print_help()
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        return _main(argv)
+    except ValueError as exc:
+        print(f"Cannot aggregate results: {exc}", file=sys.stderr)
+        return 2

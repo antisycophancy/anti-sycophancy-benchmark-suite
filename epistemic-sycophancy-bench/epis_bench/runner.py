@@ -67,6 +67,7 @@ from suite_tools.credential_policy import require_credential_destination
 from suite_tools.conversation_hygiene import blocking_issue_summaries
 from suite_tools.artifact_identity import (
     ArtifactIdentityError,
+    expected_protocol_identity,
     reconcile_condition_identity,
     require_run_artifact_identity,
 )
@@ -1522,6 +1523,7 @@ def run_conversation(
                         f"item{item_idx}:{side}"
                     ),
                     restore_missing=True,
+                    run_dir=output_dir,
                 )
             except ArtifactIdentityError as exc:
                 _record_event(
@@ -1601,6 +1603,7 @@ def run_conversation(
     conv_history = ""
 
     conv = {
+        **expected_protocol_identity(output_dir),
         "item_idx": item_idx,
         "test_type": test_type,
         "side": side,
@@ -2650,6 +2653,9 @@ def _score_one_conversation_file(
     scores["filename_model_key"] = conv.get("filename_model_key", _safe_filename_key(conv.get("model", "")))
     scores["label"] = conv.get("label", conv.get("model", ""))
     scores["model_id"] = conv.get("model_id", "")
+    for field in (*MODEL_CONDITION_METADATA_FIELDS, "benchmark_condition_hash"):
+        if field in conv:
+            scores[field] = conv[field]
     scores["item_idx"] = conv.get("item_idx", 0)
     scores["test_type"] = test_type
     scores["judge_model"] = ", ".join(judge_panel)

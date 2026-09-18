@@ -20,7 +20,7 @@ python-dotenv==1.2.2
 uvicorn==0.51.0
 
 # Test, build, and release-security tooling
-pip==26.1.2
+pip==26.2
 setuptools==83.0.0
 pytest==9.1.1
 hatchling==1.32.0

@@ -1050,6 +1050,16 @@ def _cmd_rescore(args: argparse.Namespace) -> None:
         atomic_write_json(monitor.status_path, monitor.status)
     if prepared_config_receipt:
         monitor.record("prepared_config_verified", **prepared_config_receipt)
+    seen_score_inputs = set()
+    for result, source in zip(all_results, result_sources):
+        condition, scenario, number = _score_input_key(result)
+        key = (source.resolve().parent, condition or result.get("model"), scenario, number)
+        if key in seen_score_inputs:
+            monitor.mark_failed("Duplicate SUS scoring observation", status="failed_invalid",
+                                failure_stage="duplicate_score_input")
+            console.print("[red]ERROR:[/red] Duplicate SUS scoring observation; select one source per unit.")
+            sys.exit(2)
+        seen_score_inputs.add(key)
     if input_dir is not None and (input_dir / "RUN_CONTRACT.json").is_file():
         try:
             artifact_identity = require_run_artifact_identity(input_dir)
@@ -1223,18 +1233,23 @@ def _cmd_rescore(args: argparse.Namespace) -> None:
         monitor.record("preflight_receipt_admitted", **preflight_admission)
 
     load_repo_env_files()
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        console.print("[red]ERROR:[/red] OPENROUTER_API_KEY not set.")
+    from sus_bench.scorer import validate_judge_credentials
+
+    api_key = os.environ.get("OPENROUTER_API_KEY", "")
+    try:
+        uses_openrouter = validate_judge_credentials(judge_configs or judge_panel, api_key)
+    except ValueError as exc:
+        console.print(f"[red]ERROR:[/red] {sanitize_error_message(exc)}")
         monitor.mark_failed(
-            "OPENROUTER_API_KEY not set",
+            exc,
             status="failed_invalid",
             failure_stage="credentials",
         )
         sys.exit(1)
     reset_cost_tracker()
     tracker = get_cost_tracker()
-    tracker.set_api_key(api_key)
+    if uses_openrouter:
+        tracker.set_api_key(api_key)
 
     rescored_items = []
     score_failures = []
@@ -1601,7 +1616,7 @@ def _discover_conversation_files(input_dir: Path) -> list[Path]:
     """Return generation conversation files, excluding prior score outputs."""
     candidates = []
     for path in sorted(input_dir.glob("*-conversations.json")):
-        if path.name == "FINAL_RESULTS-conversations.json":
+        if path.name.startswith("FINAL_RESULTS"):
             continue
         if path.name.startswith("sus-rescore-"):
             continue

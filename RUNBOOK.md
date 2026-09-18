@@ -203,6 +203,12 @@ cd /path/to/benchmark
 3. For prepared runs, prefer the scheduler so queued/running/ETA/attention
    state is visible in the cockpit:
 
+Preparation claims a new module directory exclusively. It refuses an existing
+module directory, rendered module config, or module entry in the run plan;
+use a new run ID/output path to change a prepared condition. This also applies
+after a failed preparation: preserve its files for diagnosis instead of
+overwriting them. Adding a different module to the same run group is allowed.
+
 ```bash
 ./venv/bin/python -m suite_tools.prepare_run \
   --module sus \
@@ -527,6 +533,13 @@ judge/model rows flagged. Publish it alongside panel results for any run used
 in a leaderboard claim. (`suite_tools.panel_compare` remains the tool for the
 older archived separate-judge-directory layout.)
 
+SUS scoring validates credentials for the entire configured judge panel before
+calling any judge. Native judges use their configured `api_key_env` values;
+`OPENROUTER_API_KEY` is required only for judges routed through OpenRouter
+(including the default panel). A mixed panel needs both sets of credentials.
+Changing how the target model is accessed does not change the judge panel or
+its credential requirements.
+
 ## 0.6 Reasoning-effort models, preflight, and resume
 
 Lessons from running reasoning-effort model families (e.g. GPT-5.6
@@ -630,7 +643,19 @@ the frozen contract. Reuse is valid only when the saved artifact's
 `condition_id` and `condition_hash` match the same rendered condition that the
 frozen contract names. Runners validate that identity before reuse; a missing
 field may be restored in memory from that one rendered condition, while any
-conflict stops the attempt before another paid call. Before resuming a run that previously hit
+conflict stops the attempt before another paid call.
+
+New preparations also declare `artifact_protocol_version`. Their generated
+transcripts carry `benchmark_condition_hash`, binding the benchmark protocol,
+sample condition, and judge panel in addition to the model identity. Resume
+and verification reject a missing or different protocol binding, including on
+partial transcripts; unlike legacy model metadata, this field is never filled
+in from the current contract during reuse. Historical contracts without this
+declaration retain their legacy checks and are not rewritten or retroactively
+certified. Their artifacts cannot be imported into a new preparation as if
+they had the new binding.
+
+Before resuming a run that previously hit
 `--stop-on-attention` or otherwise failed:
 
 1. Clear the stale cooperative stop signal, or the scheduler re-observes the
@@ -1520,6 +1545,24 @@ ignored maintainer tooling (`internal/maintainer_tools/legacy-scripts/`); it
 predates run contracts and the release scoring contract. Use
 `suite_tools.public_results_page` and `unified_profile` exports for shareable
 result bundles instead.
+
+Unified profiles display **configured effort**, model-condition hash, provider
+API, and route hash. They accept one condition per canonical model in a report;
+different effort, routing, or request settings must be selected into separate
+reports, not averaged together. Conditions must also match across modules
+before computing a composite. Module-specific benchmark protocol hashes may
+differ across modules, but not within a module's pooled observations.
+
+Overlapping input paths are deduplicated. SUS final scored conversations take
+precedence over their per-unit copies, and partial scoring outputs are not
+automatically loaded. Duplicate unit identities within a run are rejected;
+independent runs in separate directories retain their observations.
+
+New AITA and Epistemic scores preserve their source conversation's condition
+metadata. Historical files without effort remain `unknown (not recorded)`;
+reports neither infer it from model names nor rewrite old artifacts. Recorded
+configuration is not proof that a provider internally honored it: keep the
+preflight and effective-request receipt checks before interpreting results.
 
 ### Score direction
 
